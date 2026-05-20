@@ -1,12 +1,9 @@
-import { createHash } from "node:crypto";
-
+import bcrypt from "bcrypt";
 import { PrismaClient, RoleScope } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const developmentPasswordHash = createHash("sha256")
-  .update("vc-crm-development-password")
-  .digest("hex");
+const developmentPassword = "Password123!";
 
 const permissions = [
   {
@@ -77,6 +74,7 @@ async function assignPermissions(roleId: string, permissionIds: Iterable<string>
 }
 
 async function main(): Promise<void> {
+  const developmentPasswordHash = await bcrypt.hash(developmentPassword, 12);
   const permissionIds = await upsertPermissions();
 
   const demoTenant = await prisma.tenant.upsert({
