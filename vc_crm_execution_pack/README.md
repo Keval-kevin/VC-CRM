@@ -1,24 +1,87 @@
-# Virtual Coders CRM Execution Pack
+# Virtual Coders CRM
 
-This pack contains the final upgraded build instructions for the Virtual Coders multi-tenant IT Sales CRM.
+Monorepo foundation for the Virtual Coders multi-tenant IT Sales CRM.
 
-## Files
+Phase 0 is intentionally limited to project structure, tooling, local infrastructure, and baseline checks. Business modules, Prisma schema, auth, RBAC, tenant isolation, and production UI work start in later phases.
 
-- `VIBECODING_FINAL_MASTER_GUIDE.md`: Final product, architecture, UI, admin, AI, QA, and execution guide.
-- `agents/backend.toml`: Backend agent instructions.
-- `agents/frontend.toml`: Frontend agent instructions.
-- `agents/database.toml`: Database agent instructions.
-- `agents/qa.toml`: QA agent instructions.
-- `agents/devops.toml`: DevOps agent instructions.
-- `prompts/CODEX_EXECUTION_PLAN.md`: Step-by-step Codex execution plan.
-- `qa/QA_MASTER_CHECKLIST.md`: Full QA checklist.
-- `database/DUMMY_DATA_PLAN.md`: Dummy data seed plan.
+## Stack
 
-## Recommended use
+- React 18, TypeScript, Vite for `apps/web`
+- Node.js 20, Express, TypeScript for `apps/api`
+- Shared TypeScript contracts in `packages/shared-types`
+- pnpm workspaces
+- PostgreSQL 15, Redis 7, and MinIO through Docker Compose
+- ESLint, Prettier, Vitest, strict TypeScript
 
-1. Add these files to your repository root.
-2. Start with `prompts/CODEX_EXECUTION_PLAN.md` Phase 0.
-3. Do not skip audit and merge planning if an existing CRM already exists.
-4. Execute one phase at a time.
-5. Use the relevant `.toml` agent for each workstream.
-6. Do not accept a module unless the QA checklist passes for that module.
+## Repository Layout
+
+```txt
+apps/
+  api/
+  web/
+packages/
+  shared-types/
+agents/
+database/
+prompts/
+qa/
+```
+
+## Prerequisites
+
+```powershell
+node -v
+pnpm -v
+docker --version
+docker compose version
+```
+
+Expected versions:
+
+- Node.js 20.x for project and CI
+- pnpm 9.x or newer
+- Docker 24.x or newer
+
+## First-Time Setup
+
+```powershell
+pnpm install
+Copy-Item apps/api/.env.example apps/api/.env
+Copy-Item apps/web/.env.example apps/web/.env
+docker compose up -d postgres redis minio
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm dev
+```
+
+Local services:
+
+- Web: http://localhost:5173
+- API: http://localhost:4000
+- API health: http://localhost:4000/health
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
+- MinIO: http://localhost:9000
+- MinIO console: http://localhost:9001
+
+## Root Scripts
+
+```powershell
+pnpm dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm format
+```
+
+## Source Of Truth
+
+- `VIBECODING_FINAL_MASTER_GUIDE.md`
+- `prompts/CODEX_EXECUTION_PLAN.md`
+- `qa/QA_MASTER_CHECKLIST.md`
+- `database/DUMMY_DATA_PLAN.md`
+- `agents/*.toml`
+
+Execute one phase at a time. Do not build the whole CRM in one pass.
