@@ -44,10 +44,124 @@ model Tenant {
   auditLogs  AuditLog[]
   settings   TenantSettings?
   aiSettings AIProviderSetting[]
+  accounts   Account[]
+  contacts   Contact[]
+  activities ActivityTimelineItem[]
 
   @@index([status])
   @@index([createdAt])
   @@index([updatedAt])
+  @@index([deletedAt])
+}
+
+enum AccountStatus {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model Account {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @db.Uuid
+  name        String
+  website     String?
+  domain      String?
+  industry    String?
+  phone       String?
+  city        String?
+  country     String?
+  status      AccountStatus @default(PROSPECT)
+  ownerId     String?       @db.Uuid
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+  createdById String?       @db.Uuid
+  updatedById String?       @db.Uuid
+  deletedById String?       @db.Uuid
+
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contacts   Contact[]
+  activities ActivityTimelineItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, name])
+  @@index([tenantId, domain])
+  @@index([deletedAt])
+}
+
+model Contact {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @db.Uuid
+  accountId      String?       @db.Uuid
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  title          String?
+  linkedinUrl    String?
+  decisionMaker  Boolean       @default(false)
+  influenceLevel String?
+  status         ContactStatus @default(ACTIVE)
+  ownerId        String?       @db.Uuid
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  createdById    String?       @db.Uuid
+  updatedById    String?       @db.Uuid
+  deletedById    String?       @db.Uuid
+
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account    Account?               @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  activities ActivityTimelineItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, accountId])
+  @@index([tenantId, status])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, updatedAt])
+  @@index([tenantId, email])
+  @@index([tenantId, phone])
+  @@index([deletedAt])
+}
+
+model ActivityTimelineItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  accountId   String?   @db.Uuid
+  contactId   String?   @db.Uuid
+  type        String
+  title       String
+  description String?
+  occurredAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  deletedById String?   @db.Uuid
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, accountId])
+  @@index([tenantId, contactId])
+  @@index([tenantId, occurredAt])
   @@index([deletedAt])
 }
 

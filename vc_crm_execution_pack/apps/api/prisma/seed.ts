@@ -7,6 +7,54 @@ const developmentPassword = "Password123!";
 
 const permissions = [
   {
+    key: "accounts:read:all",
+    name: "Read accounts",
+    category: "accounts",
+    description: "View all tenant accounts.",
+  },
+  {
+    key: "accounts:create",
+    name: "Create accounts",
+    category: "accounts",
+    description: "Create tenant accounts.",
+  },
+  {
+    key: "accounts:update:all",
+    name: "Update accounts",
+    category: "accounts",
+    description: "Update all tenant accounts.",
+  },
+  {
+    key: "accounts:delete:all",
+    name: "Delete accounts",
+    category: "accounts",
+    description: "Soft delete tenant accounts.",
+  },
+  {
+    key: "contacts:read:all",
+    name: "Read contacts",
+    category: "contacts",
+    description: "View all tenant contacts.",
+  },
+  {
+    key: "contacts:create",
+    name: "Create contacts",
+    category: "contacts",
+    description: "Create tenant contacts.",
+  },
+  {
+    key: "contacts:update:all",
+    name: "Update contacts",
+    category: "contacts",
+    description: "Update all tenant contacts.",
+  },
+  {
+    key: "contacts:delete:all",
+    name: "Delete contacts",
+    category: "contacts",
+    description: "Soft delete tenant contacts.",
+  },
+  {
     key: "admin-settings:manage",
     name: "Manage admin settings",
     category: "admin",
@@ -147,6 +195,14 @@ async function main(): Promise<void> {
   await assignPermissions(
     tenantAdminRole.id,
     [
+      permissionIds.get("accounts:read:all"),
+      permissionIds.get("accounts:create"),
+      permissionIds.get("accounts:update:all"),
+      permissionIds.get("accounts:delete:all"),
+      permissionIds.get("contacts:read:all"),
+      permissionIds.get("contacts:create"),
+      permissionIds.get("contacts:update:all"),
+      permissionIds.get("contacts:delete:all"),
       permissionIds.get("admin-settings:manage"),
       permissionIds.get("ai-settings:manage"),
       permissionIds.get("users:manage"),

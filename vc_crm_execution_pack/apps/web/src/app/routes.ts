@@ -124,6 +124,8 @@ export const placeholderRoutes = routeGroups.flatMap((group) =>
         "/admin/security",
         "/admin/ai-settings",
         "/admin/audit-logs",
+        "/accounts",
+        "/contacts",
       ].includes(item.path),
   ),
 );

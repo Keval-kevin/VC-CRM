@@ -36,6 +36,27 @@ describe("App", (): void => {
     expect(screen.getByText("Leads list shell")).toBeInTheDocument();
   });
 
+  it("renders accounts list and account detail layouts", (): void => {
+    renderApp("/accounts");
+
+    expect(screen.getByRole("heading", { name: "Accounts" })).toBeInTheDocument();
+    expect(screen.getByText("Account list")).toBeInTheDocument();
+    expect(screen.getByText("Open Acme Cloud Systems detail")).toBeInTheDocument();
+
+    renderApp("/accounts/acct-1");
+    expect(screen.getByRole("heading", { name: "Acme Cloud Systems" })).toBeInTheDocument();
+    expect(screen.getByText("Contacts sub-table")).toBeInTheDocument();
+    expect(screen.getByText("Activity timeline")).toBeInTheDocument();
+  });
+
+  it("renders contacts list layout", (): void => {
+    renderApp("/contacts");
+
+    expect(screen.getByRole("heading", { name: "Contacts" })).toBeInTheDocument();
+    expect(screen.getByText("Contact list")).toBeInTheDocument();
+    expect(screen.getByText("Activity timeline placeholder")).toBeInTheDocument();
+  });
+
   it("renders concrete admin foundation pages", (): void => {
     renderApp("/admin/users");
 

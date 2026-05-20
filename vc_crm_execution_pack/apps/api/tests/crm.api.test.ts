@@ -1,0 +1,283 @@
+import { randomUUID } from "node:crypto";
+
+import bcrypt from "bcrypt";
+import { RoleScope, UserStatus } from "@prisma/client";
+import request from "supertest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+
+import { createApp } from "../src/app.js";
+import { resetRateLimitBuckets } from "../src/shared/middleware/rate-limit.middleware.js";
+import { prisma } from "../src/shared/prisma/client.js";
+
+type JsonObject = Record<string, unknown>;
+
+const app = createApp();
+const seededPassword = "Password123!";
+const testDomain = "crm.test";
+
+beforeEach((): void => {
+  resetRateLimitBuckets();
+});
+
+afterAll(async (): Promise<void> => {
+  await prisma.activityTimelineItem.deleteMany({
+    where: { title: { contains: "CRM Test" } },
+  });
+  await prisma.contact.deleteMany({
+    where: { email: { endsWith: `@${testDomain}` } },
+  });
+  await prisma.account.deleteMany({
+    where: { name: { contains: "CRM Test" } },
+  });
+  await prisma.userRole.deleteMany({
+    where: { user: { email: { endsWith: `@${testDomain}` } } },
+  });
+  await prisma.role.deleteMany({
+    where: { uniqueKey: { startsWith: "crm-test:" } },
+  });
+  await prisma.user.deleteMany({
+    where: { email: { endsWith: `@${testDomain}` } },
+  });
+  await prisma.$disconnect();
+});
+
+describe("crm API", (): void => {
+  it("supports account CRUD, pagination, search, contacts sub-table, timeline, and audit logs", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const accountName = `CRM Test Account ${randomUUID()}`;
+
+    const createdResponse = await request(app)
+      .post("/api/v1/accounts")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        name: accountName,
+        website: "https://crm-test.example.com",
+        industry: "IT Services",
+        city: "Ahmedabad",
+        country: "India",
+      })
+      .expect(201);
+    const account = getData(createdResponse);
+    const accountId = String(account.id);
+
+    await request(app)
+      .post("/api/v1/contacts")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        accountId,
+        firstName: "CRM",
+        lastName: "Contact",
+        email: `primary-${randomUUID()}@${testDomain}`,
+        decisionMaker: true,
+      })
+      .expect(201);
+
+    const listResponse = await request(app)
+      .get("/api/v1/accounts")
+      .query({ page: 1, pageSize: 5, search: "CRM Test", sortBy: "name", sortDirection: "asc" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    const listData = getData(listResponse);
+
+    expect((listData.items as unknown[]).length).toBeGreaterThan(0);
+    expect(listData.pagination).toMatchObject({ page: 1, pageSize: 5 });
+
+    const detailResponse = await request(app)
+      .get(`/api/v1/accounts/${accountId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    const detail = getData(detailResponse);
+
+    expect(detail.contacts).toEqual(expect.any(Array));
+    expect(detail.activities).toEqual(expect.any(Array));
+
+    await request(app)
+      .patch(`/api/v1/accounts/${accountId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ status: "ACTIVE", notes: "Updated by API test" })
+      .expect(200);
+
+    await request(app)
+      .delete(`/api/v1/accounts/${accountId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        entityId: accountId,
+        action: { in: ["accounts.created", "accounts.updated", "accounts.deleted"] },
+      },
+    });
+
+    expect(auditCount).toBe(3);
+  });
+
+  it("rejects duplicate accounts and tenantId payloads", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const name = `CRM Test Duplicate ${randomUUID()}`;
+
+    await request(app)
+      .post("/api/v1/accounts")
+      .set("authorization", `Bearer ${token}`)
+      .send({ name, domain: "crm-duplicate.example.com" })
+      .expect(201);
+
+    await request(app)
+      .post("/api/v1/accounts")
+      .set("authorization", `Bearer ${token}`)
+      .send({ name })
+      .expect(409);
+
+    const invalidResponse = await request(app)
+      .post("/api/v1/accounts")
+      .set("authorization", `Bearer ${token}`)
+      .send({ name: "Bad Tenant Payload", tenantId: randomUUID() })
+      .expect(400);
+
+    expect(invalidResponse.body).toMatchObject({ success: false, error: { code: "VAL_001" } });
+  });
+
+  it("supports contact CRUD, filters, duplicate detection, and soft delete", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const email = `contact-api-${randomUUID()}@${testDomain}`;
+
+    const createResponse = await request(app)
+      .post("/api/v1/contacts")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        firstName: "API",
+        lastName: "Contact",
+        email,
+        title: "Founder",
+      })
+      .expect(201);
+    const contact = getData(createResponse);
+    const contactId = String(contact.id);
+
+    await request(app)
+      .post("/api/v1/contacts")
+      .set("authorization", `Bearer ${token}`)
+      .send({ firstName: "Dup", lastName: "Contact", email })
+      .expect(409);
+
+    await request(app)
+      .get("/api/v1/contacts")
+      .query({ search: "API", status: "ACTIVE", sortBy: "lastName" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    await request(app)
+      .patch(`/api/v1/contacts/${contactId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ influenceLevel: "High" })
+      .expect(200);
+
+    await request(app)
+      .delete(`/api/v1/contacts/${contactId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    const deleted = await prisma.contact.findUniqueOrThrow({
+      where: { id: contactId },
+      select: { deletedAt: true },
+    });
+
+    expect(deleted.deletedAt).toBeInstanceOf(Date);
+  });
+
+  it("enforces RBAC for account endpoints", async (): Promise<void> => {
+    const token = await login(await createUserWithoutCrmPermissions());
+
+    const response = await request(app)
+      .get("/api/v1/accounts")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+
+    expect(response.body).toMatchObject({ success: false, error: { code: "AUTH_003" } });
+  });
+
+  it("blocks cross-tenant account and contact access", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: `CRM Test Other ${randomUUID()}`,
+        slug: `crm-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      },
+      select: { id: true },
+    });
+    const otherAccount = await prisma.account.create({
+      data: { tenantId: otherTenant.id, name: `CRM Test Other Account ${randomUUID()}` },
+      select: { id: true },
+    });
+    const otherContact = await prisma.contact.create({
+      data: { tenantId: otherTenant.id, firstName: "Other", lastName: "Contact" },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get(`/api/v1/accounts/${otherAccount.id}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(404);
+
+    await request(app)
+      .get(`/api/v1/contacts/${otherContact.id}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(404);
+  });
+});
+
+async function login(email: string): Promise<string> {
+  const response = await request(app)
+    .post("/api/v1/auth/login")
+    .send({ email, password: seededPassword })
+    .expect(200);
+  const token = getData(response).accessToken;
+
+  if (typeof token !== "string") {
+    throw new Error("Missing access token");
+  }
+
+  return token;
+}
+
+async function createUserWithoutCrmPermissions(): Promise<string> {
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { slug: "virtual-coders" },
+    select: { id: true },
+  });
+  const email = `no-crm-${randomUUID()}@${testDomain}`;
+  const user = await prisma.user.create({
+    data: {
+      tenantId: tenant.id,
+      email,
+      passwordHash: await bcrypt.hash(seededPassword, 12),
+      firstName: "No",
+      lastName: "CRM",
+      status: UserStatus.ACTIVE,
+    },
+    select: { id: true },
+  });
+  const role = await prisma.role.create({
+    data: {
+      tenantId: tenant.id,
+      scope: RoleScope.TENANT,
+      key: "no-crm",
+      uniqueKey: `crm-test:${randomUUID()}`,
+      name: "CRM Test No CRM",
+    },
+    select: { id: true },
+  });
+  await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+
+  return email;
+}
+
+function getData(response: request.Response): JsonObject {
+  const body = response.body as JsonObject;
+
+  if (typeof body.data !== "object" || body.data === null || Array.isArray(body.data)) {
+    throw new Error("Expected response data object");
+  }
+
+  return body.data as JsonObject;
+}
