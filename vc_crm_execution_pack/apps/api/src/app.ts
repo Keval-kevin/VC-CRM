@@ -2,6 +2,7 @@ import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
 
+import { adminRouter } from "./modules/admin/index.js";
 import { authRouter } from "./modules/auth/index.js";
 import { createSuccessResponse } from "./shared/http/response.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
@@ -19,6 +20,7 @@ export function createApp(): Express {
   });
 
   app.use("/api/v1/auth", authRouter);
+  app.use("/api/v1/admin", adminRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
 

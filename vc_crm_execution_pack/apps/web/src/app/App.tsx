@@ -1,20 +1,50 @@
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+
+import { AppShell } from "../components/layout/AppShell";
+import { AdminAiSettingsPage } from "../modules/admin/AdminAiSettingsPage";
+import { AdminAuditLogsPage } from "../modules/admin/AdminAuditLogsPage";
+import { AdminDashboardPage } from "../modules/admin/AdminDashboardPage";
+import { AdminRolesPage } from "../modules/admin/AdminRolesPage";
+import { AdminSecurityPage } from "../modules/admin/AdminSecurityPage";
+import { AdminTenantSettingsPage } from "../modules/admin/AdminTenantSettingsPage";
+import { AdminUsersPage } from "../modules/admin/AdminUsersPage";
+import { LoginPage } from "../modules/auth/LoginPage";
+import { DashboardPage } from "../modules/dashboard/DashboardPage";
+import { PlaceholderPage } from "../modules/placeholders/PlaceholderPage";
 import { HealthPage } from "./HealthPage";
+import { placeholderRoutes } from "./routes";
+
+const isAuthenticated = true;
 
 export function App(): JSX.Element {
-  if (window.location.pathname === "/health") {
-    return <HealthPage />;
+  return (
+    <Routes>
+      <Route path="/health" element={<HealthPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppShell />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/roles" element={<AdminRolesPage />} />
+          <Route path="/admin/tenant-settings" element={<AdminTenantSettingsPage />} />
+          <Route path="/admin/security" element={<AdminSecurityPage />} />
+          <Route path="/admin/ai-settings" element={<AdminAiSettingsPage />} />
+          <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
+          {placeholderRoutes.map((route) => (
+            <Route key={route.path} path={route.path} element={<PlaceholderPage route={route} />} />
+          ))}
+        </Route>
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function ProtectedRoute(): JSX.Element {
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
-  return (
-    <main className="app-shell">
-      <section className="app-panel" aria-labelledby="app-title">
-        <p className="eyebrow">Virtual Coders CRM</p>
-        <h1 id="app-title">Foundation Ready</h1>
-        <p>
-          Phase 0 scaffold is in place. Product modules, auth, RBAC, tenant isolation, and database
-          work intentionally start in later batches.
-        </p>
-      </section>
-    </main>
-  );
+  return <Outlet />;
 }

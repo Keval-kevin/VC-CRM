@@ -82,6 +82,37 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm format
+pnpm prisma migrate dev
+pnpm prisma db seed
+pnpm db:reset
+```
+
+## Database Foundation
+
+The Phase 1 database foundation uses Prisma with PostgreSQL and currently includes only:
+
+- Tenant
+- User
+- Role
+- Permission
+- UserRole
+- RolePermission
+- AuditLog
+
+Run migrations and the idempotent seed:
+
+```powershell
+pnpm prisma migrate dev
+pnpm prisma db seed
+pnpm prisma db seed
+```
+
+The second seed run should not create duplicates.
+
+Reset the local development database:
+
+```powershell
+pnpm db:reset
 ```
 
 ## Source Of Truth

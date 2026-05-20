@@ -7,6 +7,18 @@ const developmentPassword = "Password123!";
 
 const permissions = [
   {
+    key: "admin-settings:manage",
+    name: "Manage admin settings",
+    category: "admin",
+    description: "Manage tenant security and company settings.",
+  },
+  {
+    key: "ai-settings:manage",
+    name: "Manage AI settings",
+    category: "ai",
+    description: "Configure AI providers, models, budgets, and encrypted API key storage.",
+  },
+  {
     key: "tenants:manage",
     name: "Manage tenants",
     category: "tenants",
@@ -135,6 +147,8 @@ async function main(): Promise<void> {
   await assignPermissions(
     tenantAdminRole.id,
     [
+      permissionIds.get("admin-settings:manage"),
+      permissionIds.get("ai-settings:manage"),
       permissionIds.get("users:manage"),
       permissionIds.get("roles:manage"),
       permissionIds.get("audit:read"),
@@ -176,6 +190,41 @@ async function main(): Promise<void> {
       deletedAt: null,
     },
   });
+
+  await prisma.tenantSettings.upsert({
+    where: { tenantId: demoTenant.id },
+    create: {
+      tenantId: demoTenant.id,
+      companyName: demoTenant.name,
+      timezone: demoTenant.timezone,
+      locale: demoTenant.locale,
+    },
+    update: {
+      companyName: demoTenant.name,
+      timezone: demoTenant.timezone,
+      locale: demoTenant.locale,
+      deletedAt: null,
+    },
+  });
+
+  for (const provider of ["openai", "anthropic", "gemini"]) {
+    await prisma.aIProviderSetting.upsert({
+      where: {
+        tenantId_provider: {
+          tenantId: demoTenant.id,
+          provider,
+        },
+      },
+      create: {
+        tenantId: demoTenant.id,
+        provider,
+        defaultModel: provider === "openai" ? "gpt-4.1-mini" : "default",
+      },
+      update: {
+        deletedAt: null,
+      },
+    });
+  }
 
   await prisma.userRole.upsert({
     where: {

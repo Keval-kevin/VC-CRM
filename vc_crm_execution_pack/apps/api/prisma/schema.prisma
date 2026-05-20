@@ -39,13 +39,64 @@ model Tenant {
   updatedById String?      @db.Uuid
   deletedById String?      @db.Uuid
 
-  users     User[]
-  roles     Role[]
-  auditLogs AuditLog[]
+  users      User[]
+  roles      Role[]
+  auditLogs  AuditLog[]
+  settings   TenantSettings?
+  aiSettings AIProviderSetting[]
 
   @@index([status])
   @@index([createdAt])
   @@index([updatedAt])
+  @@index([deletedAt])
+}
+
+model TenantSettings {
+  id                    String    @id @default(uuid()) @db.Uuid
+  tenantId              String    @unique @db.Uuid
+  companyName           String
+  timezone              String    @default("Asia/Kolkata")
+  locale                String    @default("en-IN")
+  sessionTimeoutMinutes Int       @default(480)
+  passwordMinLength     Int       @default(8)
+  requireStrongPassword Boolean   @default(true)
+  ipAllowlist           String[]  @default([])
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+  createdById           String?   @db.Uuid
+  updatedById           String?   @db.Uuid
+  deletedById           String?   @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([deletedAt])
+}
+
+model AIProviderSetting {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @db.Uuid
+  provider           String
+  defaultModel       String
+  enabled            Boolean   @default(false)
+  monthlyBudgetCents Int       @default(0)
+  encryptedApiKey    String?
+  apiKeyIv           String?
+  apiKeyTag          String?
+  keyLastFour        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  createdById        String?   @db.Uuid
+  updatedById        String?   @db.Uuid
+  deletedById        String?   @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+  @@index([provider])
   @@index([deletedAt])
 }
 
