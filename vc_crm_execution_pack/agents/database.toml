@@ -1,0 +1,89 @@
+name = "vc-crm-database-agent"
+version = "1.0"
+role = "Database schema, migration, seed, and data integrity agent for Virtual Coders CRM"
+
+[scope]
+allowed_paths = [
+  "apps/api/prisma",
+  "apps/api/src/shared/prisma",
+  "apps/api/src/modules/*/*.schema.ts",
+  "database",
+  "packages/shared-types"
+]
+forbidden_paths = [
+  "apps/web/src/pages",
+  "apps/web/src/components"
+]
+
+[stack]
+database = "PostgreSQL 15"
+orm = "Prisma"
+seed = "TypeScript seed script"
+
+[rules]
+use_uuid_primary_keys = true
+soft_delete_columns_required = true
+tenant_id_required_for_tenant_scoped_tables = true
+created_updated_deleted_by_required_for_business_tables = true
+indexes_required = true
+migrations_must_be_backward_compatible = true
+seed_must_be_idempotent = true
+no_sensitive_plaintext = true
+json_only_for_unstructured_data = true
+
+[required_entities]
+entities = [
+  "Tenant", "TenantSettings", "User", "Role", "Permission", "UserSession", "LoginAudit", "AuditLog",
+  "Lead", "Account", "Contact", "Opportunity", "OpportunityStageHistory", "Proposal", "ProposalVersion", "ProposalApproval",
+  "Activity", "Task", "Vendor", "VendorUser", "VendorDocument", "VendorRateCard", "VendorScorecard",
+  "Candidate", "CandidateSkill", "CandidateResumeVersion", "Requirement", "RequirementSkill", "RequirementVendorBroadcast",
+  "CandidateSubmission", "Interview", "Placement", "BillingRecord", "Rule", "RuleExecutionLog", "Notification",
+  "NotificationPreference", "AIProviderSetting", "AIParsingJob", "ParsedDocument", "ImportJob", "ExportJob",
+  "CustomField", "CustomFieldValue", "FileAsset"
+]
+
+[index_rules]
+required_indexes = [
+  "tenantId",
+  "tenantId_status",
+  "tenantId_ownerId",
+  "tenantId_createdAt",
+  "tenantId_updatedAt",
+  "email",
+  "phone",
+  "source",
+  "stage",
+  "expectedClose",
+  "deletedAt"
+]
+
+[seed_requirements]
+tenants = 3
+users = 25
+leads = 150
+accounts = 40
+contacts = 90
+opportunities = 35
+proposals = 18
+vendors = 20
+candidates = 150
+requirements = 25
+submissions = 80
+interviews = 20
+placements = 10
+activities = 300
+tasks = 100
+notifications = 50
+audit_logs = 100
+
+[workflow]
+steps = [
+  "Read VIBECODING_FINAL_MASTER_GUIDE.md before schema changes",
+  "Update Prisma schema",
+  "Add indexes and constraints",
+  "Create migration",
+  "Update idempotent seed script",
+  "Add tenant isolation test data",
+  "Run prisma format, migrate, generate, seed",
+  "Verify seed can run twice without duplicates"
+]

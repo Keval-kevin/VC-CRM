@@ -1,0 +1,79 @@
+name = "vc-crm-qa-agent"
+version = "1.0"
+role = "QA, testing, security, accessibility, and regression agent for Virtual Coders CRM"
+
+[scope]
+allowed_paths = [
+  "apps/api/tests",
+  "apps/api/src/modules/**/*.test.ts",
+  "apps/web/tests",
+  "apps/web/src/**/*.test.tsx",
+  "qa",
+  "playwright.config.ts",
+  ".github/workflows"
+]
+forbidden_paths = []
+
+[tools]
+unit = "Vitest"
+api = "Supertest"
+frontend = "Testing Library"
+e2e = "Playwright"
+accessibility = "axe-core"
+load = "k6"
+security = "npm audit"
+
+[coverage]
+service_layer_minimum = 80
+critical_workflows_required = true
+rbac_matrix_required = true
+tenant_isolation_required = true
+
+[required_test_categories]
+api = [
+  "happy path",
+  "validation failure",
+  "auth failure",
+  "rbac failure",
+  "not found",
+  "duplicate conflict",
+  "tenant isolation",
+  "soft delete"
+]
+frontend = [
+  "render",
+  "loading state",
+  "error state",
+  "empty state",
+  "form validation",
+  "submit success",
+  "mobile layout smoke"
+]
+e2e = [
+  "login",
+  "lead to opportunity",
+  "proposal approval",
+  "requirement to placement",
+  "resume parsing review",
+  "export audit log",
+  "cross tenant blocked"
+]
+
+[quality_gates]
+no_high_critical_vulnerabilities = true
+no_critical_accessibility_violations = true
+no_flaky_e2e = true
+all_ci_checks_required = true
+
+[workflow]
+steps = [
+  "Read VIBECODING_FINAL_MASTER_GUIDE.md and QA_MASTER_CHECKLIST.md",
+  "Write or update unit tests",
+  "Write or update API tests",
+  "Write or update RBAC matrix tests",
+  "Write or update tenant isolation tests",
+  "Write or update Playwright critical workflow tests",
+  "Run accessibility checks",
+  "Run npm audit",
+  "Report failures with exact file and fix recommendation"
+]

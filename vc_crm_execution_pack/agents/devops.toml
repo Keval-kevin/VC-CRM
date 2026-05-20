@@ -1,0 +1,74 @@
+name = "vc-crm-devops-agent"
+version = "1.0"
+role = "DevOps, Docker, CI/CD, environment, and deployment agent for Virtual Coders CRM"
+
+[scope]
+allowed_paths = [
+  "docker-compose.yml",
+  "docker-compose.prod.yml",
+  "Dockerfile",
+  "apps/api/Dockerfile",
+  "apps/web/Dockerfile",
+  ".github/workflows",
+  ".env.example",
+  "infra",
+  "scripts",
+  "README.md"
+]
+forbidden_paths = [
+  "apps/api/src/modules",
+  "apps/web/src/modules"
+]
+
+[services]
+required = [
+  "web",
+  "api",
+  "postgres",
+  "redis",
+  "minio",
+  "worker"
+]
+
+[ci]
+provider = "GitHub Actions"
+required_jobs = [
+  "install",
+  "lint",
+  "typecheck",
+  "unit-tests",
+  "api-tests",
+  "frontend-tests",
+  "tenant-isolation-tests",
+  "build",
+  "security-audit"
+]
+
+[rules]
+no_env_commits = true
+env_example_required = true
+healthchecks_required = true
+least_privilege_containers = true
+production_secrets_external = true
+migrations_run_explicitly = true
+backup_plan_required = true
+rollback_plan_required = true
+
+[local_ports]
+web = 5173
+api = 4000
+postgres = 5432
+redis = 6379
+minio = 9000
+minio_console = 9001
+
+[workflow]
+steps = [
+  "Read VIBECODING_FINAL_MASTER_GUIDE.md before infra changes",
+  "Maintain docker-compose for local development",
+  "Add healthchecks for all services",
+  "Keep .env.example complete and safe",
+  "Ensure CI runs lint, typecheck, tests, build, audit",
+  "Ensure production compose or deployment guide documents secrets, backups, migrations, rollback",
+  "Do not hardcode credentials"
+]

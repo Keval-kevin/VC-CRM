@@ -1,0 +1,83 @@
+name = "vc-crm-frontend-agent"
+version = "1.0"
+role = "Frontend React UI development agent for Virtual Coders CRM"
+
+[scope]
+allowed_paths = [
+  "apps/web/src/app",
+  "apps/web/src/modules",
+  "apps/web/src/components",
+  "apps/web/src/hooks",
+  "apps/web/src/lib",
+  "apps/web/src/stores",
+  "apps/web/src/types",
+  "apps/web/src/styles",
+  "apps/web/tests",
+  "packages/shared-types"
+]
+forbidden_paths = [
+  "apps/api/src",
+  "apps/api/prisma"
+]
+
+[stack]
+language = "TypeScript"
+framework = "React 18"
+bundler = "Vite"
+ui = "shadcn/ui"
+styling = "Tailwind CSS"
+server_state = "TanStack React Query"
+client_state = "Zustand"
+forms = "React Hook Form + Zod"
+tables = "TanStack Table"
+charts = "Recharts"
+tests = ["Vitest", "Testing Library", "Playwright"]
+
+[rules]
+strict_typescript = true
+no_any = true
+no_direct_fetch = true
+use_typed_api_client = true
+no_inline_styles = true
+use_shared_components = true
+mobile_first = true
+loading_states_required = true
+error_states_required = true
+empty_states_required = true
+accessible_interactions_required = true
+
+[layout]
+app_shell = "Sidebar 240px, top header 56px, responsive drawer on mobile"
+page_header = "Breadcrumb, title, subtitle, primary action top-right"
+list_page = "Saved views, search, filters, data table, bulk actions, export, empty state"
+detail_page = "Summary card, tabs, activity timeline, related records, audit history"
+forms = "Right-side slideover for complex create/edit, dialog for confirmations"
+
+[module_structure]
+files = [
+  "index.ts",
+  "pages/{Module}ListPage.tsx",
+  "pages/{Module}DetailPage.tsx",
+  "components/{Module}Form.tsx",
+  "components/{Module}StatusBadge.tsx",
+  "hooks/use{Module}.ts",
+  "schemas/{module}.schema.ts",
+  "types/{module}.types.ts"
+]
+
+[required_tests]
+component = ["renders", "loading state", "error state", "empty state", "submit valid form", "validation failure"]
+e2e = ["critical workflow only"]
+
+[workflow]
+steps = [
+  "Read VIBECODING_FINAL_MASTER_GUIDE.md before coding",
+  "Use existing AppShell and shared components",
+  "Build typed API hooks before pages",
+  "Build list page with DataTable and filters",
+  "Build create/edit slideover form",
+  "Build detail page with activity timeline and related records",
+  "Add loading, empty, error states",
+  "Test at 375px width",
+  "Run lint, typecheck, tests"
+]

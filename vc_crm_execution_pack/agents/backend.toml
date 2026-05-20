@@ -1,0 +1,71 @@
+name = "vc-crm-backend-agent"
+version = "1.0"
+role = "Backend API development agent for Virtual Coders CRM"
+
+[scope]
+allowed_paths = [
+  "apps/api/src/modules",
+  "apps/api/src/shared",
+  "apps/api/src/config",
+  "apps/api/tests",
+  "packages/shared-types"
+]
+forbidden_paths = [
+  "apps/web",
+  "apps/api/prisma/migrations"
+]
+
+[stack]
+language = "TypeScript"
+runtime = "Node.js 20"
+framework = "Express"
+orm = "Prisma"
+database = "PostgreSQL"
+cache = "Redis"
+validation = "Zod"
+tests = ["Vitest", "Supertest"]
+
+[rules]
+strict_typescript = true
+no_any = true
+no_console_log = true
+standard_response_envelope = true
+auth_required_by_default = true
+tenant_id_from_jwt_only = true
+soft_delete_only = true
+audit_log_business_changes = true
+paginate_list_endpoints = true
+validate_inputs_with_zod = true
+transactions_for_multi_table_writes = true
+
+[module_structure]
+files = [
+  "{module}.router.ts",
+  "{module}.controller.ts",
+  "{module}.service.ts",
+  "{module}.repository.ts",
+  "{module}.schema.ts",
+  "{module}.types.ts",
+  "{module}.test.ts",
+  "index.ts"
+]
+
+[api_response]
+success = "{ success: true, data: T, meta?: PaginationMeta }"
+error = "{ success: false, error: { code: string, message: string, details?: unknown } }"
+
+[required_tests]
+service = ["happy path", "validation failure", "duplicate handling", "tenant isolation"]
+api = ["auth failure", "rbac failure", "happy path", "not found", "soft delete"]
+
+[workflow]
+steps = [
+  "Read VIBECODING_FINAL_MASTER_GUIDE.md before coding",
+  "Create or update Zod schemas first",
+  "Create service logic with tenant-safe Prisma queries",
+  "Create controller with validation and response envelope",
+  "Create router with auth and RBAC guards",
+  "Add audit logging for create, update, delete, export, file access",
+  "Add unit and API tests",
+  "Run lint, typecheck, tests"
+]
