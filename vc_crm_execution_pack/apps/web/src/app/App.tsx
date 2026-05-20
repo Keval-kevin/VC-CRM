@@ -1,4 +1,10 @@
+import { HealthPage } from "./HealthPage";
+
 export function App(): JSX.Element {
+  if (window.location.pathname === "/health") {
+    return <HealthPage />;
+  }
+
   return (
     <main className="app-shell">
       <section className="app-panel" aria-labelledby="app-title">

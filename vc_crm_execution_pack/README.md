@@ -55,9 +55,17 @@ pnpm build
 pnpm dev
 ```
 
+If port `5432` is already used locally, run PostgreSQL on another host port:
+
+```powershell
+$env:POSTGRES_PORT = "15432"
+docker compose up -d postgres redis minio
+```
+
 Local services:
 
 - Web: http://localhost:5173
+- Web health: http://localhost:5173/health
 - API: http://localhost:4000
 - API health: http://localhost:4000/health
 - PostgreSQL: localhost:5432

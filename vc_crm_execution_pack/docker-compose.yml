@@ -3,48 +3,54 @@ services:
     image: postgres:15-alpine
     container_name: vc-crm-postgres
     environment:
-      POSTGRES_DB: vc_crm
-      POSTGRES_USER: vc_crm
-      POSTGRES_PASSWORD: vc_crm_dev_password
+      POSTGRES_DB: ${POSTGRES_DB:-vc_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-vc_crm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vc_crm_dev_password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vc_crm -d vc_crm"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
     container_name: vc-crm-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
 
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: vc-crm-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: vc_crm_minio
-      MINIO_ROOT_PASSWORD: vc_crm_minio_dev_password
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-vc_crm_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vc_crm_minio_dev_password}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:
+  redis_data:
   minio_data:
