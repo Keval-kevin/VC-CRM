@@ -6,6 +6,7 @@ import {
   Bot,
   BriefcaseBusiness,
   Building2,
+  ChartNoAxesCombined,
   ClipboardList,
   Contact,
   FileText,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   UserCog,
   Users,
+  WalletCards,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -37,13 +39,13 @@ export type RouteGroup = {
   items: RouteItem[];
 };
 
-export const routeGroups = [
+export const routeGroups: RouteGroup[] = [
   {
-    label: "Overview",
+    label: "Dashboard",
     items: [{ label: "Dashboard", path: "/", icon: LayoutDashboard, status: "ready" }],
   },
   {
-    label: "CRM",
+    label: "Sales",
     items: [
       { label: "Leads", path: "/leads", icon: Flag, status: "planned" },
       { label: "Accounts", path: "/accounts", icon: Building2, status: "planned" },
@@ -56,7 +58,6 @@ export const routeGroups = [
       },
       { label: "Proposals", path: "/proposals", icon: FileText, status: "planned" },
       { label: "Activities", path: "/activities", icon: Activity, status: "planned" },
-      { label: "Tasks", path: "/tasks", icon: ListChecks, status: "planned" },
     ],
   },
   {
@@ -73,29 +74,35 @@ export const routeGroups = [
     label: "Partners",
     items: [
       { label: "Vendors", path: "/vendors", icon: Landmark, status: "planned" },
-      { label: "Vendor Portal", path: "/vendor-portal", icon: ShieldCheck, status: "planned" },
+      {
+        label: "Vendor Scorecards",
+        path: "/vendor-scorecards",
+        icon: ChartNoAxesCombined,
+        status: "planned",
+      },
     ],
   },
   {
-    label: "Finance",
+    label: "Reports",
     items: [
-      { label: "Billing", path: "/billing", icon: BadgeIndianRupee, status: "planned" },
-      { label: "Revenue", path: "/revenue", icon: BarChart3, status: "planned" },
-      { label: "Vendor Costs", path: "/vendor-costs", icon: Gauge, status: "planned" },
-    ],
-  },
-  {
-    label: "Automation",
-    items: [
-      { label: "Rules", path: "/rules", icon: Sparkles, status: "planned" },
-      { label: "Notifications", path: "/notifications", icon: Bell, status: "planned" },
-      { label: "AI Parsing", path: "/ai-parsing", icon: Bot, status: "planned" },
+      { label: "Sales Reports", path: "/reports/sales", icon: BarChart3, status: "planned" },
+      {
+        label: "Delivery Reports",
+        path: "/reports/delivery",
+        icon: ClipboardList,
+        status: "planned",
+      },
+      {
+        label: "Finance Reports",
+        path: "/reports/finance",
+        icon: WalletCards,
+        status: "planned",
+      },
     ],
   },
   {
     label: "Admin",
     items: [
-      { label: "Admin Dashboard", path: "/admin", icon: UserCog, status: "planned" },
       { label: "Users", path: "/admin/users", icon: UserCog, status: "planned" },
       { label: "Roles", path: "/admin/roles", icon: LockKeyhole, status: "planned" },
       {
@@ -104,41 +111,53 @@ export const routeGroups = [
         icon: Building2,
         status: "planned",
       },
-      { label: "Security", path: "/admin/security", icon: ShieldCheck, status: "planned" },
       { label: "AI Settings", path: "/admin/ai-settings", icon: Bot, status: "planned" },
-      { label: "Parsing Jobs", path: "/admin/parsing-jobs", icon: Bot, status: "planned" },
-      { label: "Imports", path: "/admin/imports", icon: Import, status: "planned" },
+      { label: "Security", path: "/admin/security", icon: ShieldCheck, status: "planned" },
       { label: "Audit Logs", path: "/admin/audit-logs", icon: ShieldCheck, status: "planned" },
     ],
   },
 ] satisfies RouteGroup[];
 
-export const placeholderRoutes = routeGroups.flatMap((group) =>
-  group.items.filter(
-    (item) =>
-      item.path !== "/" &&
-      ![
-        "/admin",
-        "/admin/users",
-        "/admin/roles",
-        "/admin/tenant-settings",
-        "/admin/security",
-        "/admin/ai-settings",
-        "/admin/parsing-jobs",
-        "/admin/audit-logs",
-        "/leads",
-        "/accounts",
-        "/contacts",
-        "/opportunities",
-        "/proposals",
-        "/activities",
-        "/tasks",
-        "/vendors",
-        "/candidates",
-        "/requirements",
-        "/submissions",
-        "/interviews",
-        "/placements",
-      ].includes(item.path),
-  ),
-);
+const preservedUtilityRoutes: RouteItem[] = [
+  { label: "Tasks", path: "/tasks", icon: ListChecks, status: "planned" },
+  { label: "Vendor Portal", path: "/vendor-portal", icon: ShieldCheck, status: "planned" },
+  { label: "Billing", path: "/billing", icon: BadgeIndianRupee, status: "planned" },
+  { label: "Revenue", path: "/revenue", icon: BarChart3, status: "planned" },
+  { label: "Vendor Costs", path: "/vendor-costs", icon: Gauge, status: "planned" },
+  { label: "Rules", path: "/rules", icon: Sparkles, status: "planned" },
+  { label: "Notifications", path: "/notifications", icon: Bell, status: "planned" },
+  { label: "AI Parsing", path: "/ai-parsing", icon: Bot, status: "planned" },
+  { label: "Admin Dashboard", path: "/admin", icon: UserCog, status: "planned" },
+  { label: "Parsing Jobs", path: "/admin/parsing-jobs", icon: Bot, status: "planned" },
+  { label: "Imports", path: "/admin/imports", icon: Import, status: "planned" },
+];
+
+const implementedRoutePaths = new Set([
+  "/",
+  "/admin",
+  "/admin/users",
+  "/admin/roles",
+  "/admin/tenant-settings",
+  "/admin/security",
+  "/admin/ai-settings",
+  "/admin/parsing-jobs",
+  "/admin/audit-logs",
+  "/leads",
+  "/accounts",
+  "/contacts",
+  "/opportunities",
+  "/proposals",
+  "/activities",
+  "/tasks",
+  "/vendors",
+  "/candidates",
+  "/requirements",
+  "/submissions",
+  "/interviews",
+  "/placements",
+]);
+
+export const placeholderRoutes = [
+  ...routeGroups.flatMap((group) => group.items),
+  ...preservedUtilityRoutes,
+].filter((item) => !implementedRoutePaths.has(item.path));

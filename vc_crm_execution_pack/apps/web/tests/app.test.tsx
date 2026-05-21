@@ -12,7 +12,7 @@ describe("App", (): void => {
 
     expect(screen.getByRole("heading", { name: "Operating overview" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();
-    expect(screen.getByText("CRM")).toBeInTheDocument();
+    expect(screen.getByText("Sales")).toBeInTheDocument();
     expect(screen.getByText("Delivery")).toBeInTheDocument();
     expect(screen.getAllByText("Virtual Coders").length).toBeGreaterThan(0);
   });
