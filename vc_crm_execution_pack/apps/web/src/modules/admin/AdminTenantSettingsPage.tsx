@@ -1,31 +1,29 @@
 import { Building2 } from "lucide-react";
 
-import { PageHeader } from "../../components/shared/PageHeader";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
+import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { AdminSettingsSection } from "./AdminSettingsSection";
+import { AdminSettingsShell } from "./AdminSettingsShell";
 
 export function AdminTenantSettingsPage(): JSX.Element {
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Admin / Tenant"
-        title="Tenant settings"
-        subtitle="Company profile, locale, timezone, and tenant-level operating preferences."
-        action={<Button type="button">Save settings</Button>}
-      />
+    <AdminSettingsShell
+      title="Tenant settings"
+      description="Company profile, locale, timezone, and tenant-level operating preferences."
+    >
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Card>
-          <CardHeader>
-            <h2 className="text-base font-semibold text-vc-navy">Company settings</h2>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+        <AdminSettingsSection
+          title="Company settings"
+          description="These values shape tenant display, locale defaults, and session behavior."
+          saveLabel="Save settings"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input defaultValue="Virtual Coders" aria-label="Company name" />
             <Input defaultValue="Asia/Kolkata" aria-label="Timezone" />
             <Input defaultValue="en-IN" aria-label="Locale" />
             <Input defaultValue="480" aria-label="Session timeout" />
-          </CardContent>
-        </Card>
+          </div>
+        </AdminSettingsSection>
         <Card>
           <CardContent className="p-4">
             <Building2 className="h-5 w-5 text-vc-blue" />
@@ -37,6 +35,6 @@ export function AdminTenantSettingsPage(): JSX.Element {
           </CardContent>
         </Card>
       </section>
-    </div>
+    </AdminSettingsShell>
   );
 }
