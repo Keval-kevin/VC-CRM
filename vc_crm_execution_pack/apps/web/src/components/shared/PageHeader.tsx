@@ -42,7 +42,11 @@ export function PageHeader({
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{supportingText}</p>
         )}
       </div>
-      {action !== undefined && <div className="shrink-0">{action}</div>}
+      {action !== undefined && (
+        <div className="w-full sm:w-auto sm:shrink-0 [&>*]:w-full sm:[&>*]:w-auto">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

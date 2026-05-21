@@ -22,8 +22,8 @@ export function SectionTabs({
   tabs,
 }: SectionTabsProps): JSX.Element {
   return (
-    <div className={cn("overflow-x-auto border-b border-border", className)}>
-      <div className="flex min-w-max gap-1">
+    <div className={cn("max-w-full overflow-x-auto border-b border-border", className)}>
+      <div className="flex w-max min-w-full gap-1">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
 
@@ -32,7 +32,7 @@ export function SectionTabs({
               key={tab.id}
               type="button"
               className={cn(
-                "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
+                "flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition-colors sm:px-4",
                 isActive
                   ? "border-vc-blue text-vc-navy"
                   : "border-transparent text-muted-foreground hover:text-foreground",

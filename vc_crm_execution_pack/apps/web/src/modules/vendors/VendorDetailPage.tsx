@@ -82,7 +82,7 @@ export function VendorDetailPage(): JSX.Element {
         />
       }
       toolbar={
-        <div className="sticky top-16 z-10 rounded-card border border-border bg-card shadow-card">
+        <div className="sticky top-28 z-10 rounded-card border border-border bg-card shadow-card sm:top-16">
           <SectionTabs tabs={tabs} activeTabId={activeTab} onChange={setActiveTab} />
         </div>
       }

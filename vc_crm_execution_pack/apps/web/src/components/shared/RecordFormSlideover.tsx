@@ -57,7 +57,7 @@ export function RecordFormSlideover({
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="record-slideover-form">
+          <Button type="submit" form="record-slideover-form" className="w-full sm:w-auto">
             {saveLabel}
           </Button>
         </div>

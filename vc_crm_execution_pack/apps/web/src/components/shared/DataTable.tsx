@@ -54,12 +54,15 @@ export function DataTable<Row>({
       {rows.length === 0 && emptyState !== undefined ? (
         <div className="p-4">{emptyState}</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] border-collapse text-left text-sm">
+        <div className="max-w-full overflow-x-auto">
+          <table className="w-full min-w-[620px] border-collapse text-left text-sm sm:min-w-[680px]">
             <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 {columns.map((column) => (
-                  <th key={column.id} className={cn("px-4 py-3 font-semibold", column.className)}>
+                  <th
+                    key={column.id}
+                    className={cn("whitespace-nowrap px-3 py-3 font-semibold sm:px-4", column.className)}
+                  >
                     {column.header}
                   </th>
                 ))}
@@ -78,7 +81,10 @@ export function DataTable<Row>({
                   {columns.map((column) => (
                     <td
                       key={column.id}
-                      className={cn("px-4 py-3 text-foreground", column.className)}
+                      className={cn(
+                        "max-w-[18rem] break-words px-3 py-3 text-foreground sm:px-4",
+                        column.className,
+                      )}
                     >
                       {column.cell(row)}
                     </td>

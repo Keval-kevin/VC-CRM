@@ -58,28 +58,30 @@ function AdminSettingsNav(): JSX.Element {
   return (
     <nav
       aria-label="Admin settings navigation"
-      className="sticky top-20 rounded-card border border-border bg-card p-2 shadow-card"
+      className="rounded-card border border-border bg-card p-2 shadow-card lg:sticky lg:top-20"
     >
-      {adminSettingsNav.map((item) => {
-        const Icon = item.icon;
+      <div className="flex gap-1 overflow-x-auto lg:block lg:space-y-1">
+        {adminSettingsNav.map((item) => {
+          const Icon = item.icon;
 
-        return (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            aria-label={`Settings ${item.label}`}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                isActive && "bg-accent text-vc-navy",
-              )
-            }
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="truncate">{item.label}</span>
-          </NavLink>
-        );
-      })}
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              aria-label={`Settings ${item.label}`}
+              className={({ isActive }) =>
+                cn(
+                  "flex shrink-0 items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  isActive && "bg-accent text-vc-navy",
+                )
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap lg:truncate">{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </div>
     </nav>
   );
 }

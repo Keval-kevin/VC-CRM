@@ -43,12 +43,12 @@ export function FormSlideover({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "absolute right-0 top-0 flex h-full w-full flex-col bg-card shadow-modal transition-transform sm:max-w-xl sm:rounded-l-card",
+          "absolute right-0 top-0 flex h-full w-full max-w-full flex-col bg-card shadow-modal transition-transform sm:max-w-xl sm:rounded-l-card",
           isOpen ? "translate-x-0" : "translate-x-full",
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-border p-5">
+        <div className="flex items-start justify-between gap-4 border-b border-border p-4 sm:p-5">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-vc-navy">{title}</h2>
             {description !== undefined && (
@@ -65,8 +65,10 @@ export function FormSlideover({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
-        {footer !== undefined && <div className="border-t border-border p-4">{footer}</div>}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
+        {footer !== undefined && (
+          <div className="sticky bottom-0 border-t border-border bg-card p-4">{footer}</div>
+        )}
       </aside>
     </div>
   );
