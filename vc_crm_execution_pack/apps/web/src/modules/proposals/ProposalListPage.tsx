@@ -1,65 +1,91 @@
-import { FileText, Plus, Stamp } from "lucide-react";
+import { FileText, Filter, Plus, Stamp } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { DataTableShell } from "../../components/shared/DataTableShell";
-import { EmptyState } from "../../components/shared/EmptyState";
-import { PageHeader } from "../../components/shared/PageHeader";
+import {
+  DataTable,
+  EmptyState,
+  ErrorState,
+  FilterBar,
+  FormSlideover,
+  KpiCard,
+  LoadingSkeleton,
+  SearchInput,
+  SurfaceCard,
+} from "../../components/shared";
+import { ListPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { ProposalStatusBadge } from "./ProposalStatusBadge";
-import { proposals } from "./proposalData";
+import { proposals, type Proposal } from "./proposalData";
 
 export function ProposalListPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const approvalQueue = proposals.filter((proposal) => proposal.status === "SUBMITTED");
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="CRM / Proposals"
-        title="Proposals"
-        subtitle="Proposal CRUD, versioning, template selector, approval workflow, approval roles, and PDF export placeholder."
-        action={
-          <Button type="button">
-            <Plus className="h-4 w-4" />
-            New proposal
-          </Button>
-        }
-      />
-      <section className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_150px_150px_150px_140px]">
-        <Input placeholder="Search proposals" aria-label="Search proposals" />
-        <Input placeholder="Status" aria-label="Status filter" />
-        <Input placeholder="Template" aria-label="Template filter" />
-        <Input placeholder="Approver role" aria-label="Approver role filter" />
-        <Button type="button" variant="secondary">
-          Queue
+    <ListPageTemplate
+      eyebrow="Sales / Proposals"
+      title="Proposals"
+      description="Proposal drafts, approvals, versions, templates, and commercial value."
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          <Plus className="h-4 w-4" />
+          New proposal
         </Button>
-      </section>
-      <section className="grid gap-3 md:grid-cols-4">
-        {[
-          ["Drafts", "4"],
-          ["Submitted", String(approvalQueue.length)],
-          ["Approved", "3"],
-          ["PDF exports", "Placeholder"],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-lg font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Stamp className="h-4 w-4 text-vc-blue" />
-            <h2 className="text-base font-semibold text-vc-navy">Proposal approval queue</h2>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
+      }
+      kpiSection={
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Total proposals" value={proposals.length} icon={FileText} />
+          <KpiCard label="Submitted" value={approvalQueue.length} tone="warning" icon={Stamp} />
+          <KpiCard
+            label="Approved"
+            value={proposals.filter((proposal) => proposal.status === "APPROVED").length}
+            tone="success"
+          />
+          <KpiCard label="PDF exports" value="Placeholder" />
+        </section>
+      }
+      toolbar={
+        <FilterBar
+          actions={
+            <Button type="button" variant="secondary">
+              <Filter className="h-4 w-4" />
+              Filters
+            </Button>
+          }
+        >
+          <SearchInput placeholder="Search proposals" aria-label="Search proposals" />
+          <Input placeholder="Status" aria-label="Status filter" />
+          <Input placeholder="Template" aria-label="Template filter" />
+          <Input placeholder="Approver role" aria-label="Approver role filter" />
+        </FilterBar>
+      }
+      loadingState={<LoadingSkeleton variant="table" />}
+      errorState={
+        <ErrorState
+          title="Proposals API unavailable"
+          description="Proposal list, approval queue, and template data will render here when the API is connected."
+        />
+      }
+      emptyState={
+        <EmptyState
+          icon={FileText}
+          title="No proposals match this view"
+          description="Select a template and create the first proposal draft."
+          actionLabel="Create proposal"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      }
+    >
+      <SurfaceCard padding="none">
+        <div className="flex items-center gap-2 border-b border-border p-4">
+          <Stamp className="h-4 w-4 text-vc-blue" />
+          <h2 className="text-base font-semibold text-vc-navy">Proposal approval queue</h2>
+        </div>
+        <div className="grid gap-3 p-4 md:grid-cols-2">
           {approvalQueue.map((proposal) => (
-            <div key={proposal.id} className="rounded-lg border border-border p-4">
+            <div key={proposal.id} className="rounded-card border border-border bg-vc-bg p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <Link
@@ -74,34 +100,82 @@ export function ProposalListPage(): JSX.Element {
               </div>
             </div>
           ))}
-        </CardContent>
-      </Card>
-      <DataTableShell
+        </div>
+      </SurfaceCard>
+      <DataTable<Proposal>
         title="Proposal list"
         columns={[
-          { key: "title", label: "Proposal" },
-          { key: "account", label: "Account" },
-          { key: "template", label: "Template" },
-          { key: "status", label: "Status" },
-          { key: "version", label: "Version" },
-          { key: "value", label: "Value" },
+          {
+            id: "proposal",
+            header: "Proposal",
+            cell: (proposal) => (
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  className="font-semibold text-vc-blue hover:text-vc-navy"
+                  to={`/proposals/${proposal.id}`}
+                >
+                  {proposal.title}
+                </Link>
+                <RowActionMenu detailPath={`/proposals/${proposal.id}`} />
+              </div>
+            ),
+          },
+          { id: "account", header: "Account", cell: (proposal) => proposal.account },
+          { id: "template", header: "Template", cell: (proposal) => proposal.template },
+          {
+            id: "status",
+            header: "Status",
+            cell: (proposal) => <ProposalStatusBadge status={proposal.status} />,
+          },
+          { id: "version", header: "Version", cell: (proposal) => `v${proposal.version}` },
+          { id: "value", header: "Value", cell: (proposal) => proposal.value },
+          { id: "owner", header: "Owner", cell: (proposal) => proposal.owner },
         ]}
-        rows={proposals.map((proposal) => ({
-          id: proposal.id,
-          title: proposal.title,
-          account: proposal.account,
-          template: proposal.template,
-          status: proposal.status,
-          version: `v${proposal.version}`,
-          value: proposal.value,
-        }))}
+        rows={proposals}
+        getRowId={(proposal) => proposal.id}
       />
-      <EmptyState
-        icon={FileText}
-        title="No proposals match this view"
-        description="Select a template and create the first proposal draft."
-        actionLabel="Create proposal"
-      />
-    </div>
+      <FormSlideover
+        isOpen={isPanelOpen}
+        title="New proposal"
+        description="Placeholder proposal form shell. Existing proposal APIs are unchanged."
+        onClose={() => setIsPanelOpen(false)}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setIsPanelOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button">Save draft</Button>
+          </div>
+        }
+      >
+        <div className="grid gap-4">
+          <Input placeholder="Proposal title" />
+          <Input placeholder="Account" />
+          <Input placeholder="Template" />
+          <Input placeholder="Approver role" />
+        </div>
+      </FormSlideover>
+    </ListPageTemplate>
+  );
+}
+
+function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+  return (
+    <details className="relative shrink-0">
+      <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
+        Actions
+      </summary>
+      <div className="absolute right-0 z-10 mt-2 w-36 rounded-card border border-border bg-card p-1 shadow-floating">
+        <Link className="block rounded-control px-3 py-2 text-sm hover:bg-muted" to={detailPath}>
+          Open detail
+        </Link>
+        <button
+          className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
+          type="button"
+        >
+          Edit draft
+        </button>
+      </div>
+    </details>
   );
 }

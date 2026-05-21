@@ -2,125 +2,153 @@ import { CalendarClock, Filter, Plus, UserRoundCheck } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { DataTableShell } from "../../components/shared/DataTableShell";
-import { EmptyState } from "../../components/shared/EmptyState";
-import { ErrorState } from "../../components/shared/ErrorState";
-import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton";
-import { PageHeader } from "../../components/shared/PageHeader";
-import { Badge } from "../../components/ui/badge";
+import {
+  DataTable,
+  EmptyState,
+  ErrorState,
+  FilterBar,
+  KpiCard,
+  LoadingSkeleton,
+  SearchInput,
+  SurfaceCard,
+} from "../../components/shared";
+import { ListPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { LeadFormPanel } from "./LeadFormPanel";
 import { LeadStatusBadge } from "./LeadStatusBadge";
-import { leads } from "./leadData";
+import { leads, type LeadListItem } from "./leadData";
 
 export function LeadListPage(): JSX.Element {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const qualifiedCount = leads.filter((lead) => lead.status === "QUALIFIED").length;
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="CRM / Leads"
-        title="Leads"
-        subtitle="Lead intake, lifecycle status, owner assignment, follow-up planning, duplicate detection, and score placeholder."
-        action={
-          <Button type="button" onClick={() => setIsPanelOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New lead
-          </Button>
-        }
-      />
-      <section className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_140px_140px_140px_150px_120px]">
-        <Input placeholder="Search leads" aria-label="Search leads" />
-        <Input placeholder="Source" aria-label="Source filter" />
-        <Input placeholder="Status" aria-label="Status filter" />
-        <Input placeholder="Owner" aria-label="Owner filter" />
-        <Input placeholder="Follow-up date" aria-label="Follow-up date filter" />
-        <Button type="button" variant="secondary">
-          <Filter className="h-4 w-4" />
-          Filters
+    <ListPageTemplate
+      eyebrow="Sales / Leads"
+      title="Leads"
+      description="Prioritize lead follow-ups, qualification, owner assignment, and conversion readiness."
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          <Plus className="h-4 w-4" />
+          New lead
         </Button>
-      </section>
-      <section className="grid gap-3 md:grid-cols-3">
-        {[
-          ["Duplicate detection", "Email, phone, company"],
-          ["Scoring rule", "Placeholder score engine"],
-          ["Import ready", "Batch and row identifiers"],
-        ].map(([title, detail]) => (
-          <Card key={title}>
-            <CardContent className="p-4">
-              <Badge variant="success">{title}</Badge>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{detail}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-vc-navy">Bulk assign placeholder</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Select leads and assign owner in bulk when real table selection is wired.
-            </p>
-          </div>
-          <Button type="button" variant="secondary">
-            <UserRoundCheck className="h-4 w-4" />
-            Bulk assign
-          </Button>
+      }
+      kpiSection={
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard label="Total leads" value={leads.length} icon={CalendarClock} />
+          <KpiCard label="Qualified" value={qualifiedCount} tone="success" icon={UserRoundCheck} />
+          <KpiCard
+            label="Due today"
+            value={leads.filter((lead) => lead.followUp === "Today").length}
+            tone="warning"
+            icon={CalendarClock}
+          />
+          <KpiCard label="Avg. score" value="68" trend="Sample module data" />
+        </section>
+      }
+      toolbar={
+        <FilterBar
+          actions={
+            <Button type="button" variant="secondary">
+              <Filter className="h-4 w-4" />
+              Filters
+            </Button>
+          }
+        >
+          <SearchInput placeholder="Search leads" aria-label="Search leads" />
+          <Input placeholder="Source" aria-label="Source filter" />
+          <Input placeholder="Status" aria-label="Status filter" />
+          <Input placeholder="Owner" aria-label="Owner filter" />
+        </FilterBar>
+      }
+      loadingState={<LoadingSkeleton variant="table" />}
+      errorState={
+        <ErrorState
+          title="Leads API unavailable"
+          description="This state is ready for the typed API client integration."
+        />
+      }
+      emptyState={
+        <EmptyState
+          icon={CalendarClock}
+          title="No leads match this view"
+          description="Clear filters, import a CSV, or create a new lead manually."
+          actionLabel="Create lead"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      }
+    >
+      <SurfaceCard className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-vc-navy">Bulk assign placeholder</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Select leads and assign owner in bulk when real table selection is wired.
+          </p>
         </div>
-      </div>
-      <DataTableShell
+        <Button type="button" variant="secondary">
+          <UserRoundCheck className="h-4 w-4" />
+          Bulk assign
+        </Button>
+      </SurfaceCard>
+      <DataTable<LeadListItem>
         title="Lead list"
         columns={[
-          { key: "name", label: "Lead" },
-          { key: "company", label: "Company" },
-          { key: "source", label: "Source" },
-          { key: "status", label: "Status" },
-          { key: "owner", label: "Owner" },
-          { key: "score", label: "Score" },
-          { key: "followUp", label: "Follow-up" },
-        ]}
-        rows={leads.map((lead) => ({
-          ...lead,
-          status: lead.status.replaceAll("_", " "),
-        }))}
-      />
-      <div className="grid gap-3 md:grid-cols-3">
-        {leads.map((lead) => (
-          <Card key={lead.id}>
-            <CardContent className="p-4">
+          {
+            id: "lead",
+            header: "Lead",
+            cell: (lead) => (
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <Link
                     className="font-semibold text-vc-blue hover:text-vc-navy"
                     to={`/leads/${lead.id}`}
                   >
                     {lead.name}
                   </Link>
-                  <p className="mt-1 text-sm text-muted-foreground">{lead.company}</p>
+                  <p className="truncate text-xs text-muted-foreground">{lead.email}</p>
                 </div>
-                <LeadStatusBadge status={lead.status} />
+                <RowActionMenu detailPath={`/leads/${lead.id}`} />
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Score {lead.score} · Follow-up {lead.followUp}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <LoadingSkeleton />
-      <ErrorState
-        title="Leads API unavailable"
-        description="This state is ready for the typed API client integration."
-      />
-      <EmptyState
-        icon={CalendarClock}
-        title="No leads match this view"
-        description="Clear filters, import a CSV, or create a new lead manually."
-        actionLabel="Create lead"
+            ),
+          },
+          { id: "company", header: "Company", cell: (lead) => lead.company },
+          { id: "source", header: "Source", cell: (lead) => lead.source },
+          {
+            id: "status",
+            header: "Status",
+            cell: (lead) => <LeadStatusBadge status={lead.status} />,
+          },
+          { id: "score", header: "Score", cell: (lead) => lead.score },
+          { id: "owner", header: "Owner", cell: (lead) => lead.owner },
+          { id: "lastActivity", header: "Last Activity", cell: () => "Sample activity" },
+          { id: "followUp", header: "Next Follow-up", cell: (lead) => lead.followUp },
+        ]}
+        rows={leads}
+        getRowId={(lead) => lead.id}
       />
       <LeadFormPanel isOpen={isPanelOpen} mode="create" onClose={() => setIsPanelOpen(false)} />
-    </div>
+    </ListPageTemplate>
+  );
+}
+
+function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+  return (
+    <details className="relative shrink-0">
+      <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
+        Actions
+      </summary>
+      <div className="absolute right-0 z-10 mt-2 w-36 rounded-card border border-border bg-card p-1 shadow-floating">
+        <Link className="block rounded-control px-3 py-2 text-sm hover:bg-muted" to={detailPath}>
+          Open detail
+        </Link>
+        <button
+          className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
+          type="button"
+        >
+          Edit
+        </button>
+      </div>
+    </details>
   );
 }
