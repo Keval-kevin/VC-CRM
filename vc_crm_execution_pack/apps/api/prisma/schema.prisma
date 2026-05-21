@@ -49,6 +49,10 @@ model Tenant {
   leads                   Lead[]
   opportunities           Opportunity[]
   opportunityStageHistory OpportunityStageHistory[]
+  proposals               Proposal[]
+  proposalVersions        ProposalVersion[]
+  proposalApprovals       ProposalApproval[]
+  crmActivities           CrmActivity[]
   activities              ActivityTimelineItem[]
 
   @@index([status])
@@ -92,6 +96,36 @@ enum OpportunityStage {
   LOST
 }
 
+enum ProposalStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  SENT
+  WON
+  LOST
+}
+
+enum ProposalApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  NOTE
+}
+
+enum ActivityStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
 model Lead {
   id                   String     @id @default(uuid()) @db.Uuid
   tenantId             String     @db.Uuid
@@ -128,6 +162,7 @@ model Lead {
   tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   activities    ActivityTimelineItem[]
   opportunities Opportunity[]
+  crmActivities CrmActivity[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -174,6 +209,8 @@ model Opportunity {
   lead           Lead?                     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   activities     ActivityTimelineItem[]
   stageHistory   OpportunityStageHistory[]
+  proposals      Proposal[]
+  crmActivities  CrmActivity[]
 
   @@index([tenantId])
   @@index([tenantId, accountId])
@@ -211,6 +248,152 @@ model OpportunityStageHistory {
   @@index([deletedAt])
 }
 
+model Proposal {
+  id                   String         @id @default(uuid()) @db.Uuid
+  tenantId             String         @db.Uuid
+  opportunityId        String?        @db.Uuid
+  accountId            String?        @db.Uuid
+  contactId            String?        @db.Uuid
+  title                String
+  templateKey          String
+  status               ProposalStatus @default(DRAFT)
+  currentVersionNumber Int            @default(1)
+  approvalRole         String?
+  ownerId              String?        @db.Uuid
+  valueCents           Int            @default(0)
+  currency             String         @default("INR")
+  submittedAt          DateTime?
+  approvedAt           DateTime?
+  rejectedAt           DateTime?
+  sentAt               DateTime?
+  wonAt                DateTime?
+  lostAt               DateTime?
+  pdfExportRequestedAt DateTime?
+  notes                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  deletedAt            DateTime?
+  createdById          String?        @db.Uuid
+  updatedById          String?        @db.Uuid
+  deletedById          String?        @db.Uuid
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  opportunity Opportunity?       @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  account     Account?           @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contact     Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  versions    ProposalVersion[]
+  approvals   ProposalApproval[]
+  activities  CrmActivity[]
+
+  @@index([tenantId])
+  @@index([tenantId, opportunityId])
+  @@index([tenantId, accountId])
+  @@index([tenantId, contactId])
+  @@index([tenantId, status])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, updatedAt])
+  @@index([deletedAt])
+}
+
+model ProposalVersion {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @db.Uuid
+  proposalId    String    @db.Uuid
+  versionNumber Int
+  templateKey   String
+  title         String
+  contentJson   Json
+  changeNote    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  createdById   String?   @db.Uuid
+  updatedById   String?   @db.Uuid
+  deletedById   String?   @db.Uuid
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, versionNumber])
+  @@index([tenantId])
+  @@index([tenantId, proposalId])
+  @@index([tenantId, createdAt])
+  @@index([deletedAt])
+}
+
+model ProposalApproval {
+  id             String                 @id @default(uuid()) @db.Uuid
+  tenantId       String                 @db.Uuid
+  proposalId     String                 @db.Uuid
+  roleKey        String
+  status         ProposalApprovalStatus @default(PENDING)
+  approverUserId String?                @db.Uuid
+  decidedAt      DateTime?
+  comment        String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  deletedAt      DateTime?
+  createdById    String?                @db.Uuid
+  updatedById    String?                @db.Uuid
+  deletedById    String?                @db.Uuid
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, proposalId])
+  @@index([tenantId, roleKey])
+  @@index([tenantId, status])
+  @@index([deletedAt])
+}
+
+model CrmActivity {
+  id            String         @id @default(uuid()) @db.Uuid
+  tenantId      String         @db.Uuid
+  type          ActivityType
+  status        ActivityStatus @default(OPEN)
+  title         String
+  description   String?
+  ownerId       String?        @db.Uuid
+  leadId        String?        @db.Uuid
+  accountId     String?        @db.Uuid
+  contactId     String?        @db.Uuid
+  opportunityId String?        @db.Uuid
+  proposalId    String?        @db.Uuid
+  candidateRef  String?
+  vendorRef     String?
+  dueAt         DateTime?
+  reminderAt    DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  createdById   String?        @db.Uuid
+  updatedById   String?        @db.Uuid
+  deletedById   String?        @db.Uuid
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  account     Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  proposal    Proposal?    @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, dueAt])
+  @@index([tenantId, reminderAt])
+  @@index([tenantId, leadId])
+  @@index([tenantId, accountId])
+  @@index([tenantId, contactId])
+  @@index([tenantId, opportunityId])
+  @@index([tenantId, proposalId])
+  @@index([deletedAt])
+}
+
 model Account {
   id          String        @id @default(uuid()) @db.Uuid
   tenantId    String        @db.Uuid
@@ -235,6 +418,8 @@ model Account {
   contacts      Contact[]
   opportunities Opportunity[]
   activities    ActivityTimelineItem[]
+  proposals     Proposal[]
+  crmActivities CrmActivity[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -272,6 +457,8 @@ model Contact {
   account       Account?               @relation(fields: [accountId], references: [id], onDelete: SetNull)
   opportunities Opportunity[]
   activities    ActivityTimelineItem[]
+  proposals     Proposal[]
+  crmActivities CrmActivity[]
 
   @@index([tenantId])
   @@index([tenantId, accountId])

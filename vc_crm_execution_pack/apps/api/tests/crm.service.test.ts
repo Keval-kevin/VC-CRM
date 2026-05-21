@@ -3,13 +3,22 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
+  createCrmActivity,
   convertLeadToOpportunity,
   createAccount,
   createContact,
   createLead,
   createOpportunity,
+  createProposal,
+  createProposalVersion,
+  decideProposal,
+  listCrmActivities,
+  listProposals,
   deleteAccount,
   deleteLead,
+  requestProposalPdfExport,
+  submitProposal,
+  updateCrmActivity,
   listOpportunities,
   listOpportunityPipeline,
   listAccounts,
@@ -22,6 +31,82 @@ import type { CrmActor } from "../src/modules/crm/crm.types.js";
 import { prisma } from "../src/shared/prisma/client.js";
 
 describe("crm service", (): void => {
+  it("creates proposal versions and approval workflow records", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const account = await createAccount(actor, {}, { name: `Proposal Account ${randomUUID()}` });
+    const proposal = await createProposal(
+      actor,
+      {},
+      {
+        accountId: getId(account),
+        title: `Proposal ${randomUUID()}`,
+        templateKey: "staff-augmentation",
+        contentJson: { sections: ["overview"] },
+        approvalRole: "sales-manager",
+        valueCents: 750_000,
+      },
+    );
+    const proposalId = getId(proposal);
+
+    const versioned = await createProposalVersion(actor, {}, proposalId, {
+      contentJson: { sections: ["overview", "pricing"] },
+      changeNote: "Added pricing",
+    });
+    expect(versioned).toMatchObject({ currentVersionNumber: 2, status: "DRAFT" });
+
+    const submitted = await submitProposal(actor, {}, proposalId, {
+      approvalRole: "sales-manager",
+    });
+    expect(submitted).toMatchObject({ status: "SUBMITTED", approvalRole: "sales-manager" });
+
+    const queue = await listProposals(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      approvalQueue: true,
+    });
+    expect(queue.items.some((item) => getId(item) === proposalId)).toBe(true);
+
+    const approved = await decideProposal(actor, {}, proposalId, {
+      decision: "APPROVED",
+      comment: "Commercials approved",
+    });
+    expect(approved).toMatchObject({ status: "APPROVED" });
+
+    const exported = await requestProposalPdfExport(actor, {}, proposalId);
+    expect((exported as { pdfExportRequestedAt?: Date }).pdfExportRequestedAt).toBeInstanceOf(Date);
+  });
+
+  it("creates activities, detects overdue tasks, and completes reminders", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const account = await createAccount(actor, {}, { name: `Activity Account ${randomUUID()}` });
+    const activity = await createCrmActivity(
+      actor,
+      {},
+      {
+        type: "TASK",
+        title: `Follow up ${randomUUID()}`,
+        accountId: getId(account),
+        dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        reminderAt: new Date(),
+      },
+    );
+    const activityId = getId(activity);
+
+    expect(activity).toMatchObject({ isOverdue: true, status: "OPEN" });
+
+    const overdue = await listCrmActivities(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "asc",
+      overdueOnly: true,
+    });
+    expect(overdue.items.some((item) => getId(item) === activityId)).toBe(true);
+
+    const completed = await updateCrmActivity(actor, {}, activityId, { status: "COMPLETED" });
+    expect(completed).toMatchObject({ isOverdue: false, status: "COMPLETED" });
+  });
+
   it("converts a lead into account, contact, and opportunity once", async (): Promise<void> => {
     const actor = await getTenantActor();
     const lead = await createLead(

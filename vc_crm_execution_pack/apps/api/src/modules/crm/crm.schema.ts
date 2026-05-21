@@ -1,4 +1,12 @@
-import { AccountStatus, ContactStatus, LeadStatus, OpportunityStage } from "@prisma/client";
+import {
+  AccountStatus,
+  ActivityStatus,
+  ActivityType,
+  ContactStatus,
+  LeadStatus,
+  OpportunityStage,
+  ProposalStatus,
+} from "@prisma/client";
 import { z } from "zod";
 
 export const paginationSchema = z.object({
@@ -35,6 +43,29 @@ export const opportunityListQuerySchema = paginationSchema.extend({
   expectedCloseFrom: z.coerce.date().optional(),
   expectedCloseTo: z.coerce.date().optional(),
   stagnantOnly: z.coerce.boolean().optional(),
+});
+
+export const proposalListQuerySchema = paginationSchema.extend({
+  accountId: z.string().uuid().optional(),
+  contactId: z.string().uuid().optional(),
+  opportunityId: z.string().uuid().optional(),
+  ownerId: z.string().uuid().optional(),
+  status: z.enum(ProposalStatus).optional(),
+  approvalQueue: z.coerce.boolean().optional(),
+});
+
+export const activityListQuerySchema = paginationSchema.extend({
+  leadId: z.string().uuid().optional(),
+  accountId: z.string().uuid().optional(),
+  contactId: z.string().uuid().optional(),
+  opportunityId: z.string().uuid().optional(),
+  proposalId: z.string().uuid().optional(),
+  ownerId: z.string().uuid().optional(),
+  type: z.enum(ActivityType).optional(),
+  status: z.enum(ActivityStatus).optional(),
+  overdueOnly: z.coerce.boolean().optional(),
+  dueFrom: z.coerce.date().optional(),
+  dueTo: z.coerce.date().optional(),
 });
 
 export const createAccountSchema = z
@@ -150,16 +181,100 @@ export const convertLeadSchema = z
   })
   .strict();
 
+const jsonObjectSchema = z.record(z.string(), z.unknown());
+
+export const createProposalSchema = z
+  .object({
+    opportunityId: z.string().uuid().optional(),
+    accountId: z.string().uuid().optional(),
+    contactId: z.string().uuid().optional(),
+    title: z.string().trim().min(2).max(180),
+    templateKey: z.string().trim().min(2).max(80),
+    contentJson: jsonObjectSchema.default({ sections: [] }),
+    approvalRole: z.string().trim().max(80).optional(),
+    ownerId: z.string().uuid().optional(),
+    valueCents: z.coerce.number().int().min(0).default(0),
+    currency: z
+      .string()
+      .trim()
+      .length(3)
+      .transform((value) => value.toUpperCase())
+      .default("INR"),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
+export const updateProposalSchema = createProposalSchema
+  .omit({ contentJson: true })
+  .extend({
+    status: z.enum(ProposalStatus).optional(),
+  })
+  .partial()
+  .strict();
+
+export const createProposalVersionSchema = z
+  .object({
+    templateKey: z.string().trim().min(2).max(80).optional(),
+    title: z.string().trim().min(2).max(180).optional(),
+    contentJson: jsonObjectSchema,
+    changeNote: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const submitProposalSchema = z
+  .object({
+    approvalRole: z.string().trim().min(2).max(80).default("sales-manager"),
+  })
+  .strict();
+
+export const decideProposalSchema = z
+  .object({
+    decision: z.enum(["APPROVED", "REJECTED"]),
+    roleKey: z.string().trim().min(2).max(80).optional(),
+    comment: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export const createActivitySchema = z
+  .object({
+    type: z.enum(ActivityType),
+    status: z.enum(ActivityStatus).default(ActivityStatus.OPEN),
+    title: z.string().trim().min(2).max(180),
+    description: z.string().trim().max(2000).optional(),
+    ownerId: z.string().uuid().optional(),
+    leadId: z.string().uuid().optional(),
+    accountId: z.string().uuid().optional(),
+    contactId: z.string().uuid().optional(),
+    opportunityId: z.string().uuid().optional(),
+    proposalId: z.string().uuid().optional(),
+    candidateRef: z.string().trim().max(120).optional(),
+    vendorRef: z.string().trim().max(120).optional(),
+    dueAt: z.coerce.date().optional(),
+    reminderAt: z.coerce.date().optional(),
+  })
+  .strict();
+
+export const updateActivitySchema = createActivitySchema.partial().strict();
+
 export type AccountListQuery = z.infer<typeof accountListQuerySchema>;
 export type ContactListQuery = z.infer<typeof contactListQuerySchema>;
 export type LeadListQuery = z.infer<typeof leadListQuerySchema>;
 export type OpportunityListQuery = z.infer<typeof opportunityListQuerySchema>;
+export type ProposalListQuery = z.infer<typeof proposalListQuerySchema>;
+export type ActivityListQuery = z.infer<typeof activityListQuerySchema>;
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
 export type CreateContactInput = z.infer<typeof createContactSchema>;
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 export type CreateOpportunityInput = z.infer<typeof createOpportunitySchema>;
 export type ConvertLeadInput = z.infer<typeof convertLeadSchema>;
+export type CreateProposalInput = z.infer<typeof createProposalSchema>;
+export type CreateProposalVersionInput = z.infer<typeof createProposalVersionSchema>;
+export type SubmitProposalInput = z.infer<typeof submitProposalSchema>;
+export type DecideProposalInput = z.infer<typeof decideProposalSchema>;
+export type CreateActivityInput = z.infer<typeof createActivitySchema>;
 export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
 export type UpdateContactInput = z.infer<typeof updateContactSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 export type UpdateOpportunityInput = z.infer<typeof updateOpportunitySchema>;
+export type UpdateProposalInput = z.infer<typeof updateProposalSchema>;
+export type UpdateActivityInput = z.infer<typeof updateActivitySchema>;

@@ -20,6 +20,12 @@ beforeEach((): void => {
 });
 
 afterAll(async (): Promise<void> => {
+  await prisma.crmActivity.deleteMany({
+    where: { title: { contains: "CRM Test" } },
+  });
+  await prisma.proposal.deleteMany({
+    where: { title: { contains: "CRM Test" } },
+  });
   await prisma.opportunity.deleteMany({
     where: {
       OR: [{ name: { contains: "CRM Test" } }, { account: { name: { contains: "CRM Test" } } }],
@@ -50,6 +56,114 @@ afterAll(async (): Promise<void> => {
 });
 
 describe("crm API", (): void => {
+  it("supports proposal CRUD, versioning, approvals, and PDF export placeholder", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const account = await prisma.account.create({
+      data: {
+        tenantId: await getDemoTenantId(),
+        name: `CRM Test Proposal Account ${randomUUID()}`,
+      },
+      select: { id: true },
+    });
+
+    const created = await request(app)
+      .post("/api/v1/proposals")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        accountId: account.id,
+        title: `CRM Test Proposal ${randomUUID()}`,
+        templateKey: "staff-augmentation",
+        contentJson: { sections: ["overview"] },
+        approvalRole: "sales-manager",
+        valueCents: 1_250_000,
+      })
+      .expect(201);
+    const proposalId = String(getData(created).id);
+
+    await request(app)
+      .post(`/api/v1/proposals/${proposalId}/versions`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ contentJson: { sections: ["overview", "pricing"] }, changeNote: "Pricing added" })
+      .expect(201);
+
+    await request(app)
+      .post(`/api/v1/proposals/${proposalId}/submit`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ approvalRole: "sales-manager" })
+      .expect(200);
+
+    const queue = await request(app)
+      .get("/api/v1/proposals")
+      .query({ approvalQueue: true })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    expect((getData(queue).items as unknown[]).length).toBeGreaterThan(0);
+
+    const approved = await request(app)
+      .post(`/api/v1/proposals/${proposalId}/decision`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ decision: "APPROVED", comment: "Approved for sending" })
+      .expect(200);
+    expect(getData(approved)).toMatchObject({ status: "APPROVED", currentVersionNumber: 2 });
+
+    const exported = await request(app)
+      .post(`/api/v1/proposals/${proposalId}/pdf-export`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(getData(exported).pdfExportRequestedAt).toEqual(expect.any(String));
+
+    await request(app)
+      .patch(`/api/v1/proposals/${proposalId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ status: "SENT" })
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/proposals/${proposalId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
+  it("supports activities, reminders, linked entities, and overdue detection", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const account = await prisma.account.create({
+      data: {
+        tenantId: await getDemoTenantId(),
+        name: `CRM Test Activity Account ${randomUUID()}`,
+      },
+      select: { id: true },
+    });
+
+    const created = await request(app)
+      .post("/api/v1/activities")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        type: "TASK",
+        title: `CRM Test Follow up ${randomUUID()}`,
+        accountId: account.id,
+        dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        reminderAt: new Date().toISOString(),
+        vendorRef: "vendor-placeholder",
+      })
+      .expect(201);
+    const activityId = String(getData(created).id);
+    expect(getData(created)).toMatchObject({ isOverdue: true, type: "TASK" });
+
+    await request(app)
+      .get("/api/v1/activities")
+      .query({ overdueOnly: true })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .patch(`/api/v1/activities/${activityId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ status: "COMPLETED" })
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/activities/${activityId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
   it("converts leads and supports opportunity list, detail, pipeline, stage movement, and delete", async (): Promise<void> => {
     const token = await login("tenant.admin@virtualcoders.local");
     const leadResponse = await request(app)
@@ -533,6 +647,15 @@ async function createUserWithoutCrmPermissions(): Promise<string> {
   await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
 
   return email;
+}
+
+async function getDemoTenantId(): Promise<string> {
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { slug: "virtual-coders" },
+    select: { id: true },
+  });
+
+  return tenant.id;
 }
 
 function getData(response: request.Response): JsonObject {

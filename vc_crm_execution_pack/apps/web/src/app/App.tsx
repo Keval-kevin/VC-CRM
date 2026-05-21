@@ -17,6 +17,9 @@ import { LeadDetailPage } from "../modules/leads/LeadDetailPage";
 import { LeadListPage } from "../modules/leads/LeadListPage";
 import { OpportunityDetailPage } from "../modules/opportunities/OpportunityDetailPage";
 import { OpportunityListPage } from "../modules/opportunities/OpportunityListPage";
+import { ProposalDetailPage } from "../modules/proposals/ProposalDetailPage";
+import { ProposalListPage } from "../modules/proposals/ProposalListPage";
+import { ActivityListPage } from "../modules/activities/ActivityListPage";
 import { PlaceholderPage } from "../modules/placeholders/PlaceholderPage";
 import { HealthPage } from "./HealthPage";
 import { placeholderRoutes } from "./routes";
@@ -45,6 +48,10 @@ export function App(): JSX.Element {
           <Route path="/leads/:leadId" element={<LeadDetailPage />} />
           <Route path="/opportunities" element={<OpportunityListPage />} />
           <Route path="/opportunities/:opportunityId" element={<OpportunityDetailPage />} />
+          <Route path="/proposals" element={<ProposalListPage />} />
+          <Route path="/proposals/:proposalId" element={<ProposalDetailPage />} />
+          <Route path="/activities" element={<ActivityListPage />} />
+          <Route path="/tasks" element={<ActivityListPage />} />
           {placeholderRoutes.map((route) => (
             <Route key={route.path} path={route.path} element={<PlaceholderPage route={route} />} />
           ))}

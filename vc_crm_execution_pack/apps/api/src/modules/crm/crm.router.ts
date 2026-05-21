@@ -7,27 +7,41 @@ import { requirePermission } from "../../shared/middleware/rbac.middleware.js";
 import { requireTenant } from "../../shared/middleware/tenant.middleware.js";
 import {
   createAccountController,
+  createActivityController,
   createContactController,
   createLeadController,
   createOpportunityController,
+  createProposalController,
+  createProposalVersionController,
   convertLeadController,
+  decideProposalController,
   deleteAccountController,
+  deleteActivityController,
   deleteContactController,
   deleteLeadController,
   deleteOpportunityController,
+  deleteProposalController,
   getAccountController,
+  getActivityController,
   getContactController,
   getLeadController,
   getOpportunityController,
+  getProposalController,
   listAccountsController,
+  listActivitiesController,
   listContactsController,
   listLeadsController,
   listOpportunitiesController,
   listOpportunityPipelineController,
+  listProposalsController,
+  requestProposalPdfExportController,
+  submitProposalController,
   updateAccountController,
+  updateActivityController,
   updateContactController,
   updateLeadController,
   updateOpportunityController,
+  updateProposalController,
 } from "./crm.controller.js";
 
 export const crmRouter = Router();
@@ -94,6 +108,78 @@ crmRouter.delete(
   "/opportunities/:opportunityId",
   requirePermission(permissions.opportunitiesDelete),
   asyncHandler(deleteOpportunityController),
+);
+
+crmRouter.get(
+  "/proposals",
+  requirePermission(permissions.proposalsRead),
+  asyncHandler(listProposalsController),
+);
+crmRouter.post(
+  "/proposals",
+  requirePermission(permissions.proposalsCreate),
+  asyncHandler(createProposalController),
+);
+crmRouter.get(
+  "/proposals/:proposalId",
+  requirePermission(permissions.proposalsRead),
+  asyncHandler(getProposalController),
+);
+crmRouter.patch(
+  "/proposals/:proposalId",
+  requirePermission(permissions.proposalsUpdate),
+  asyncHandler(updateProposalController),
+);
+crmRouter.post(
+  "/proposals/:proposalId/versions",
+  requirePermission(permissions.proposalsUpdate),
+  asyncHandler(createProposalVersionController),
+);
+crmRouter.post(
+  "/proposals/:proposalId/submit",
+  requirePermission(permissions.proposalsUpdate),
+  asyncHandler(submitProposalController),
+);
+crmRouter.post(
+  "/proposals/:proposalId/decision",
+  requirePermission(permissions.proposalsApprove),
+  asyncHandler(decideProposalController),
+);
+crmRouter.post(
+  "/proposals/:proposalId/pdf-export",
+  requirePermission(permissions.proposalsRead),
+  asyncHandler(requestProposalPdfExportController),
+);
+crmRouter.delete(
+  "/proposals/:proposalId",
+  requirePermission(permissions.proposalsDelete),
+  asyncHandler(deleteProposalController),
+);
+
+crmRouter.get(
+  "/activities",
+  requirePermission(permissions.activitiesRead),
+  asyncHandler(listActivitiesController),
+);
+crmRouter.post(
+  "/activities",
+  requirePermission(permissions.activitiesCreate),
+  asyncHandler(createActivityController),
+);
+crmRouter.get(
+  "/activities/:activityId",
+  requirePermission(permissions.activitiesRead),
+  asyncHandler(getActivityController),
+);
+crmRouter.patch(
+  "/activities/:activityId",
+  requirePermission(permissions.activitiesUpdate),
+  asyncHandler(updateActivityController),
+);
+crmRouter.delete(
+  "/activities/:activityId",
+  requirePermission(permissions.activitiesDelete),
+  asyncHandler(deleteActivityController),
 );
 
 crmRouter.get(

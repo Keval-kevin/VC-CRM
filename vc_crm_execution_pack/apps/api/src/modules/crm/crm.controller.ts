@@ -4,42 +4,65 @@ import { AppError } from "../../shared/errors/app-error.js";
 import { createSuccessResponse } from "../../shared/http/response.js";
 import {
   accountListQuerySchema,
+  activityListQuerySchema,
   contactListQuerySchema,
   convertLeadSchema,
+  createActivitySchema,
   createAccountSchema,
   createContactSchema,
   createLeadSchema,
   createOpportunitySchema,
+  createProposalSchema,
+  createProposalVersionSchema,
+  decideProposalSchema,
   leadListQuerySchema,
   opportunityListQuerySchema,
+  proposalListQuerySchema,
+  submitProposalSchema,
+  updateActivitySchema,
   updateAccountSchema,
   updateContactSchema,
   updateLeadSchema,
   updateOpportunitySchema,
+  updateProposalSchema,
 } from "./crm.schema.js";
 import {
+  createCrmActivity,
   convertLeadToOpportunity,
   createAccount,
   createContact,
   createLead,
   createOpportunity,
+  createProposal,
+  createProposalVersion,
+  decideProposal,
+  deleteCrmActivity,
   deleteAccount,
   deleteContact,
   deleteLead,
   deleteOpportunity,
+  deleteProposal,
+  getCrmActivity,
   getAccount,
   getContact,
   getLead,
   getOpportunity,
+  getProposal,
+  listCrmActivities,
   listAccounts,
   listContacts,
   listLeads,
   listOpportunities,
   listOpportunityPipeline,
+  listProposals,
+  requestProposalPdfExport,
+  submitProposal,
+  updateCrmActivity,
   updateAccount,
   updateContact,
   updateLead,
   updateOpportunity,
+  updateProposal,
 } from "./crm.service.js";
 
 export async function listLeadsController(request: Request, response: Response): Promise<void> {
@@ -159,6 +182,177 @@ export async function deleteOpportunityController(
     requireAuth(request),
     getContext(request),
     getParam(request, "opportunityId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listProposalsController(request: Request, response: Response): Promise<void> {
+  const query = proposalListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listProposals(requireAuth(request), query)));
+}
+
+export async function getProposalController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getProposal(requireAuth(request), getParam(request, "proposalId")),
+      ),
+    );
+}
+
+export async function createProposalController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createProposalSchema.parse(request.body);
+  const result = await createProposal(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateProposalController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updateProposalSchema.parse(request.body);
+  const result = await updateProposal(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "proposalId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function createProposalVersionController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createProposalVersionSchema.parse(request.body);
+  const result = await createProposalVersion(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "proposalId"),
+    input,
+  );
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function submitProposalController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = submitProposalSchema.parse(request.body);
+  const result = await submitProposal(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "proposalId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function decideProposalController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = decideProposalSchema.parse(request.body);
+  const result = await decideProposal(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "proposalId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function requestProposalPdfExportController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await requestProposalPdfExport(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "proposalId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteProposalController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deleteProposal(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "proposalId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listActivitiesController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = activityListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listCrmActivities(requireAuth(request), query)));
+}
+
+export async function getActivityController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getCrmActivity(requireAuth(request), getParam(request, "activityId")),
+      ),
+    );
+}
+
+export async function createActivityController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createActivitySchema.parse(request.body);
+  const result = await createCrmActivity(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateActivityController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updateActivitySchema.parse(request.body);
+  const result = await updateCrmActivity(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "activityId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteActivityController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deleteCrmActivity(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "activityId"),
   );
 
   response.status(200).json(createSuccessResponse(result));

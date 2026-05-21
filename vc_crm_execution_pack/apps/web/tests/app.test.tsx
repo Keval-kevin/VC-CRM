@@ -30,10 +30,30 @@ describe("App", (): void => {
   });
 
   it("renders placeholder module pages with a table shell", (): void => {
+    renderApp("/requirements");
+
+    expect(screen.getByRole("heading", { name: "Requirements" })).toBeInTheDocument();
+    expect(screen.getByText("Requirements list shell")).toBeInTheDocument();
+  });
+
+  it("renders proposal workflows and activity views", (): void => {
     renderApp("/proposals");
 
     expect(screen.getByRole("heading", { name: "Proposals" })).toBeInTheDocument();
-    expect(screen.getByText("Proposals list shell")).toBeInTheDocument();
+    expect(screen.getByText("Proposal approval queue")).toBeInTheDocument();
+    expect(screen.getByText("Proposal list")).toBeInTheDocument();
+
+    renderApp("/proposals/prop-1");
+    expect(screen.getByRole("heading", { name: "Acme React Squad Proposal" })).toBeInTheDocument();
+    expect(screen.getByText("Proposal editor shell")).toBeInTheDocument();
+    expect(screen.getByText("Approval workflow")).toBeInTheDocument();
+    expect(screen.getByText("Version history")).toBeInTheDocument();
+
+    renderApp("/activities");
+    expect(screen.getByRole("heading", { name: "Activities" })).toBeInTheDocument();
+    expect(screen.getAllByText("Activity timeline").length).toBeGreaterThan(0);
+    expect(screen.getByText("Task list")).toBeInTheDocument();
+    expect(screen.getByText("Reminder UI")).toBeInTheDocument();
   });
 
   it("renders opportunity pipeline and detail layouts", (): void => {

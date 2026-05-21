@@ -1,21 +1,38 @@
-import { AccountStatus, LeadStatus, OpportunityStage, Prisma } from "@prisma/client";
+import {
+  AccountStatus,
+  ActivityStatus,
+  LeadStatus,
+  OpportunityStage,
+  Prisma,
+  ProposalApprovalStatus,
+  ProposalStatus,
+} from "@prisma/client";
 
 import { AppError } from "../../shared/errors/app-error.js";
 import { prisma } from "../../shared/prisma/client.js";
 import type {
   AccountListQuery,
+  ActivityListQuery,
   ContactListQuery,
+  CreateActivityInput,
   CreateAccountInput,
   CreateContactInput,
   CreateLeadInput,
   CreateOpportunityInput,
+  CreateProposalInput,
+  CreateProposalVersionInput,
   ConvertLeadInput,
+  DecideProposalInput,
   LeadListQuery,
   OpportunityListQuery,
+  ProposalListQuery,
+  SubmitProposalInput,
+  UpdateActivityInput,
   UpdateAccountInput,
   UpdateContactInput,
   UpdateLeadInput,
   UpdateOpportunityInput,
+  UpdateProposalInput,
 } from "./crm.schema.js";
 import type { CrmActor, CrmRequestContext, PaginatedResult } from "./crm.types.js";
 
@@ -208,6 +225,575 @@ const opportunitySelect = {
     take: 10,
   },
 } satisfies Prisma.OpportunitySelect;
+
+const proposalSelect = {
+  id: true,
+  tenantId: true,
+  opportunityId: true,
+  accountId: true,
+  contactId: true,
+  title: true,
+  templateKey: true,
+  status: true,
+  currentVersionNumber: true,
+  approvalRole: true,
+  ownerId: true,
+  valueCents: true,
+  currency: true,
+  submittedAt: true,
+  approvedAt: true,
+  rejectedAt: true,
+  sentAt: true,
+  wonAt: true,
+  lostAt: true,
+  pdfExportRequestedAt: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+  opportunity: { select: { id: true, name: true, stage: true } },
+  account: { select: { id: true, name: true, domain: true } },
+  contact: { select: { id: true, firstName: true, lastName: true, email: true } },
+  versions: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      versionNumber: true,
+      templateKey: true,
+      title: true,
+      contentJson: true,
+      changeNote: true,
+      createdAt: true,
+    },
+    orderBy: { versionNumber: Prisma.SortOrder.desc },
+    take: 5,
+  },
+  approvals: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      roleKey: true,
+      status: true,
+      approverUserId: true,
+      decidedAt: true,
+      comment: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: Prisma.SortOrder.desc },
+    take: 5,
+  },
+} satisfies Prisma.ProposalSelect;
+
+const crmActivitySelect = {
+  id: true,
+  tenantId: true,
+  type: true,
+  status: true,
+  title: true,
+  description: true,
+  ownerId: true,
+  leadId: true,
+  accountId: true,
+  contactId: true,
+  opportunityId: true,
+  proposalId: true,
+  candidateRef: true,
+  vendorRef: true,
+  dueAt: true,
+  reminderAt: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  lead: { select: { id: true, firstName: true, lastName: true } },
+  account: { select: { id: true, name: true } },
+  contact: { select: { id: true, firstName: true, lastName: true } },
+  opportunity: { select: { id: true, name: true } },
+  proposal: { select: { id: true, title: true, status: true } },
+} satisfies Prisma.CrmActivitySelect;
+
+export async function listProposals(
+  actor: CrmActor,
+  query: ProposalListQuery,
+): Promise<PaginatedResult<unknown>> {
+  const tenantId = requireTenant(actor);
+  const where: Prisma.ProposalWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(query.accountId === undefined ? {} : { accountId: query.accountId }),
+    ...(query.contactId === undefined ? {} : { contactId: query.contactId }),
+    ...(query.opportunityId === undefined ? {} : { opportunityId: query.opportunityId }),
+    ...(query.ownerId === undefined ? {} : { ownerId: query.ownerId }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+    ...(query.approvalQueue === true
+      ? { approvals: { some: { status: ProposalApprovalStatus.PENDING, deletedAt: null } } }
+      : {}),
+    ...(query.search === undefined
+      ? {}
+      : {
+          OR: [
+            { title: { contains: query.search, mode: "insensitive" } },
+            { account: { name: { contains: query.search, mode: "insensitive" } } },
+            { opportunity: { name: { contains: query.search, mode: "insensitive" } } },
+          ],
+        }),
+  };
+  const [items, total] = await prisma.$transaction([
+    prisma.proposal.findMany({
+      where,
+      orderBy: getProposalOrderBy(query),
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+      select: proposalSelect,
+    }),
+    prisma.proposal.count({ where }),
+  ]);
+
+  return toPaginatedResult(items, total, query.page, query.pageSize);
+}
+
+export async function getProposal(actor: CrmActor, proposalId: string): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const proposal = await prisma.proposal.findFirst({
+    where: { id: proposalId, tenantId, deletedAt: null },
+    select: proposalSelect,
+  });
+
+  if (proposal === null) {
+    throw new AppError("NOT_FOUND", "Proposal not found", 404);
+  }
+
+  return proposal;
+}
+
+export async function createProposal(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  input: CreateProposalInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertProposalRelationsBelongToTenant(tenantId, input);
+  await assertTenantUserExists(
+    tenantId,
+    input.ownerId,
+    "Proposal owner must belong to the active tenant",
+  );
+  const { contentJson, ...proposalInput } = input;
+
+  const proposal = await prisma.proposal.create({
+    data: {
+      tenantId,
+      ...proposalInput,
+      createdById: actor.sub,
+      versions: {
+        create: {
+          tenantId,
+          versionNumber: 1,
+          templateKey: input.templateKey,
+          title: input.title,
+          contentJson: contentJson as Prisma.InputJsonValue,
+          changeNote: "Initial draft",
+          createdById: actor.sub,
+        },
+      },
+    },
+    select: proposalSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "proposals.created",
+    entityType: "proposal",
+    entityId: getRecordId(proposal),
+    tenantId,
+    metadata: { templateKey: input.templateKey },
+  });
+
+  return proposal;
+}
+
+export async function updateProposal(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  proposalId: string,
+  input: UpdateProposalInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertProposalExists(tenantId, proposalId);
+  await assertProposalRelationsBelongToTenant(tenantId, input);
+  await assertTenantUserExists(
+    tenantId,
+    input.ownerId,
+    "Proposal owner must belong to the active tenant",
+  );
+
+  const proposal = await prisma.proposal.update({
+    where: { id: proposalId },
+    data: {
+      ...input,
+      updatedById: actor.sub,
+      ...(input.status === ProposalStatus.SENT ? { sentAt: new Date() } : {}),
+      ...(input.status === ProposalStatus.WON ? { wonAt: new Date() } : {}),
+      ...(input.status === ProposalStatus.LOST ? { lostAt: new Date() } : {}),
+      ...(input.status === ProposalStatus.DRAFT
+        ? { submittedAt: null, approvedAt: null, rejectedAt: null }
+        : {}),
+    },
+    select: proposalSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "proposals.updated",
+    entityType: "proposal",
+    entityId: proposalId,
+    tenantId,
+    metadata: input as Record<string, unknown>,
+  });
+
+  return proposal;
+}
+
+export async function createProposalVersion(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  proposalId: string,
+  input: CreateProposalVersionInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const existing = await assertProposalExists(tenantId, proposalId);
+  const nextVersion = existing.currentVersionNumber + 1;
+
+  const proposal = await prisma.proposal.update({
+    where: { id: proposalId },
+    data: {
+      title: input.title ?? existing.title,
+      templateKey: input.templateKey ?? existing.templateKey,
+      currentVersionNumber: nextVersion,
+      status: ProposalStatus.DRAFT,
+      updatedById: actor.sub,
+      versions: {
+        create: {
+          tenantId,
+          versionNumber: nextVersion,
+          templateKey: input.templateKey ?? existing.templateKey,
+          title: input.title ?? existing.title,
+          contentJson: input.contentJson as Prisma.InputJsonValue,
+          changeNote: input.changeNote,
+          createdById: actor.sub,
+        },
+      },
+    },
+    select: proposalSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "proposals.version_created",
+    entityType: "proposal",
+    entityId: proposalId,
+    tenantId,
+    metadata: { versionNumber: nextVersion },
+  });
+
+  return proposal;
+}
+
+export async function submitProposal(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  proposalId: string,
+  input: SubmitProposalInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const existing = await assertProposalExists(tenantId, proposalId);
+
+  if (existing.status !== ProposalStatus.DRAFT && existing.status !== ProposalStatus.REJECTED) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Only draft or rejected proposals can be submitted",
+      400,
+    );
+  }
+
+  const proposal = await prisma.proposal.update({
+    where: { id: proposalId },
+    data: {
+      status: ProposalStatus.SUBMITTED,
+      approvalRole: input.approvalRole,
+      submittedAt: new Date(),
+      rejectedAt: null,
+      updatedById: actor.sub,
+      approvals: {
+        create: {
+          tenantId,
+          roleKey: input.approvalRole,
+          status: ProposalApprovalStatus.PENDING,
+          createdById: actor.sub,
+        },
+      },
+    },
+    select: proposalSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "proposals.submitted",
+    entityType: "proposal",
+    entityId: proposalId,
+    tenantId,
+    metadata: { approvalRole: input.approvalRole },
+  });
+
+  return proposal;
+}
+
+export async function decideProposal(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  proposalId: string,
+  input: DecideProposalInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertProposalExists(tenantId, proposalId);
+  const pendingApproval = await prisma.proposalApproval.findFirst({
+    where: {
+      tenantId,
+      proposalId,
+      deletedAt: null,
+      status: ProposalApprovalStatus.PENDING,
+      ...(input.roleKey === undefined ? {} : { roleKey: input.roleKey }),
+    },
+    select: { id: true },
+  });
+
+  if (pendingApproval === null) {
+    throw new AppError("NOT_FOUND", "Pending proposal approval not found", 404);
+  }
+
+  const approved = input.decision === ProposalApprovalStatus.APPROVED;
+  const now = new Date();
+  const proposal = await prisma.proposal.update({
+    where: { id: proposalId },
+    data: {
+      status: approved ? ProposalStatus.APPROVED : ProposalStatus.REJECTED,
+      approvedAt: approved ? now : null,
+      rejectedAt: approved ? null : now,
+      updatedById: actor.sub,
+      approvals: {
+        update: {
+          where: { id: pendingApproval.id },
+          data: {
+            status: input.decision,
+            approverUserId: actor.sub,
+            decidedAt: now,
+            comment: input.comment,
+            updatedById: actor.sub,
+          },
+        },
+      },
+    },
+    select: proposalSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: approved ? "proposals.approved" : "proposals.rejected",
+    entityType: "proposal",
+    entityId: proposalId,
+    tenantId,
+    metadata: { comment: input.comment },
+  });
+
+  return proposal;
+}
+
+export async function requestProposalPdfExport(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  proposalId: string,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertProposalExists(tenantId, proposalId);
+  const proposal = await prisma.proposal.update({
+    where: { id: proposalId },
+    data: { pdfExportRequestedAt: new Date(), updatedById: actor.sub },
+    select: proposalSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "proposals.pdf_export_requested",
+    entityType: "proposal",
+    entityId: proposalId,
+    tenantId,
+  });
+
+  return proposal;
+}
+
+export async function deleteProposal(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  proposalId: string,
+): Promise<{ deleted: true }> {
+  const tenantId = requireTenant(actor);
+  await assertProposalExists(tenantId, proposalId);
+  await prisma.proposal.update({
+    where: { id: proposalId },
+    data: { deletedAt: new Date(), deletedById: actor.sub },
+  });
+  await createAuditLog(actor, context, {
+    action: "proposals.deleted",
+    entityType: "proposal",
+    entityId: proposalId,
+    tenantId,
+  });
+
+  return { deleted: true };
+}
+
+export async function listCrmActivities(
+  actor: CrmActor,
+  query: ActivityListQuery,
+): Promise<PaginatedResult<unknown>> {
+  const tenantId = requireTenant(actor);
+  const where: Prisma.CrmActivityWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(query.leadId === undefined ? {} : { leadId: query.leadId }),
+    ...(query.accountId === undefined ? {} : { accountId: query.accountId }),
+    ...(query.contactId === undefined ? {} : { contactId: query.contactId }),
+    ...(query.opportunityId === undefined ? {} : { opportunityId: query.opportunityId }),
+    ...(query.proposalId === undefined ? {} : { proposalId: query.proposalId }),
+    ...(query.ownerId === undefined ? {} : { ownerId: query.ownerId }),
+    ...(query.type === undefined ? {} : { type: query.type }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+    ...(query.overdueOnly === true
+      ? { status: ActivityStatus.OPEN, dueAt: { lt: new Date() }, completedAt: null }
+      : {}),
+    ...(query.dueFrom === undefined && query.dueTo === undefined
+      ? {}
+      : {
+          dueAt: {
+            ...(query.dueFrom === undefined ? {} : { gte: query.dueFrom }),
+            ...(query.dueTo === undefined ? {} : { lte: query.dueTo }),
+          },
+        }),
+    ...(query.search === undefined
+      ? {}
+      : {
+          OR: [
+            { title: { contains: query.search, mode: "insensitive" } },
+            { description: { contains: query.search, mode: "insensitive" } },
+          ],
+        }),
+  };
+  const [items, total] = await prisma.$transaction([
+    prisma.crmActivity.findMany({
+      where,
+      orderBy: getActivityOrderBy(query),
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+      select: crmActivitySelect,
+    }),
+    prisma.crmActivity.count({ where }),
+  ]);
+
+  return toPaginatedResult(items.map(toActivityView), total, query.page, query.pageSize);
+}
+
+export async function getCrmActivity(actor: CrmActor, activityId: string): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const activity = await prisma.crmActivity.findFirst({
+    where: { id: activityId, tenantId, deletedAt: null },
+    select: crmActivitySelect,
+  });
+
+  if (activity === null) {
+    throw new AppError("NOT_FOUND", "Activity not found", 404);
+  }
+
+  return toActivityView(activity);
+}
+
+export async function createCrmActivity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  input: CreateActivityInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertActivityRelationsBelongToTenant(tenantId, input);
+  await assertTenantUserExists(
+    tenantId,
+    input.ownerId,
+    "Activity owner must belong to the active tenant",
+  );
+  const completedAt = input.status === ActivityStatus.COMPLETED ? new Date() : undefined;
+  const activity = await prisma.crmActivity.create({
+    data: { tenantId, ...input, completedAt, createdById: actor.sub },
+    select: crmActivitySelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "activities.created",
+    entityType: "activity",
+    entityId: getRecordId(activity),
+    tenantId,
+    metadata: { type: input.type },
+  });
+
+  return toActivityView(activity);
+}
+
+export async function updateCrmActivity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  activityId: string,
+  input: UpdateActivityInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertActivityExists(tenantId, activityId);
+  await assertActivityRelationsBelongToTenant(tenantId, input);
+  await assertTenantUserExists(
+    tenantId,
+    input.ownerId,
+    "Activity owner must belong to the active tenant",
+  );
+  const activity = await prisma.crmActivity.update({
+    where: { id: activityId },
+    data: {
+      ...input,
+      updatedById: actor.sub,
+      ...(input.status === ActivityStatus.COMPLETED ? { completedAt: new Date() } : {}),
+      ...(input.status === ActivityStatus.OPEN ? { completedAt: null } : {}),
+    },
+    select: crmActivitySelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "activities.updated",
+    entityType: "activity",
+    entityId: activityId,
+    tenantId,
+    metadata: input as Record<string, unknown>,
+  });
+
+  return toActivityView(activity);
+}
+
+export async function deleteCrmActivity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  activityId: string,
+): Promise<{ deleted: true }> {
+  const tenantId = requireTenant(actor);
+  await assertActivityExists(tenantId, activityId);
+  await prisma.crmActivity.update({
+    where: { id: activityId },
+    data: { deletedAt: new Date(), deletedById: actor.sub },
+  });
+  await createAuditLog(actor, context, {
+    action: "activities.deleted",
+    entityType: "activity",
+    entityId: activityId,
+    tenantId,
+  });
+
+  return { deleted: true };
+}
 
 export async function listOpportunities(
   actor: CrmActor,
@@ -1215,6 +1801,39 @@ function getOpportunityOrderBy(
   return { createdAt: query.sortDirection };
 }
 
+function getProposalOrderBy(query: ProposalListQuery): Prisma.ProposalOrderByWithRelationInput {
+  if (query.sortBy === "name") {
+    return { title: query.sortDirection };
+  }
+
+  if (query.sortBy === "updatedAt") {
+    return { updatedAt: query.sortDirection };
+  }
+
+  return { createdAt: query.sortDirection };
+}
+
+function getActivityOrderBy(query: ActivityListQuery): Prisma.CrmActivityOrderByWithRelationInput {
+  if (query.sortBy === "updatedAt") {
+    return { updatedAt: query.sortDirection };
+  }
+
+  return { dueAt: query.sortDirection };
+}
+
+function toActivityView<
+  T extends { status: ActivityStatus; dueAt: Date | null; completedAt: Date | null },
+>(activity: T): T & { isOverdue: boolean } {
+  return {
+    ...activity,
+    isOverdue:
+      activity.status === ActivityStatus.OPEN &&
+      activity.completedAt === null &&
+      activity.dueAt !== null &&
+      activity.dueAt < new Date(),
+  };
+}
+
 async function assertNoDuplicateAccount(
   tenantId: string,
   input: { name?: string; domain?: string; website?: string },
@@ -1449,6 +2068,112 @@ async function assertOpportunityOwnerBelongsToTenant(
       "Opportunity owner must belong to the active tenant",
       400,
     );
+  }
+}
+
+async function assertProposalExists(
+  tenantId: string,
+  proposalId: string,
+): Promise<{
+  id: string;
+  title: string;
+  templateKey: string;
+  status: ProposalStatus;
+  currentVersionNumber: number;
+}> {
+  const proposal = await prisma.proposal.findFirst({
+    where: { id: proposalId, tenantId, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      templateKey: true,
+      status: true,
+      currentVersionNumber: true,
+    },
+  });
+
+  if (proposal === null) {
+    throw new AppError("NOT_FOUND", "Proposal not found", 404);
+  }
+
+  return proposal;
+}
+
+async function assertActivityExists(tenantId: string, activityId: string): Promise<void> {
+  const activity = await prisma.crmActivity.findFirst({
+    where: { id: activityId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (activity === null) {
+    throw new AppError("NOT_FOUND", "Activity not found", 404);
+  }
+}
+
+async function assertProposalRelationsBelongToTenant(
+  tenantId: string,
+  input: { opportunityId?: string; accountId?: string; contactId?: string },
+): Promise<void> {
+  if (input.opportunityId !== undefined) {
+    await assertOpportunityExists(tenantId, input.opportunityId);
+  }
+
+  if (input.accountId !== undefined) {
+    await assertAccountExists(tenantId, input.accountId);
+  }
+
+  if (input.contactId !== undefined) {
+    await assertContactExists(tenantId, input.contactId);
+  }
+}
+
+async function assertActivityRelationsBelongToTenant(
+  tenantId: string,
+  input: {
+    leadId?: string;
+    accountId?: string;
+    contactId?: string;
+    opportunityId?: string;
+    proposalId?: string;
+  },
+): Promise<void> {
+  if (input.leadId !== undefined) {
+    await assertLeadExists(tenantId, input.leadId);
+  }
+
+  if (input.accountId !== undefined) {
+    await assertAccountExists(tenantId, input.accountId);
+  }
+
+  if (input.contactId !== undefined) {
+    await assertContactExists(tenantId, input.contactId);
+  }
+
+  if (input.opportunityId !== undefined) {
+    await assertOpportunityExists(tenantId, input.opportunityId);
+  }
+
+  if (input.proposalId !== undefined) {
+    await assertProposalExists(tenantId, input.proposalId);
+  }
+}
+
+async function assertTenantUserExists(
+  tenantId: string,
+  userId: string | undefined,
+  message: string,
+): Promise<void> {
+  if (userId === undefined) {
+    return;
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { id: userId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (user === null) {
+    throw new AppError("VALIDATION_ERROR", message, 400);
   }
 }
 
