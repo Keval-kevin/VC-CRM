@@ -13,7 +13,7 @@ export function AdminAiSettingsPage(): JSX.Element {
       <PageHeader
         eyebrow="Admin / AI"
         title="AI settings"
-        subtitle="Provider enablement, model selection, budget controls, and encrypted API-key storage structure."
+        subtitle="OpenAI, Anthropic, and Gemini provider selection with budget controls and encrypted API-key storage."
         action={<Button type="button">Save provider</Button>}
       />
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -49,6 +49,10 @@ export function AdminAiSettingsPage(): JSX.Element {
             <p className="text-sm leading-6 text-muted-foreground">
               Raw keys are sent once, encrypted on the API, and only the last four characters return
               to the UI.
+            </p>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Resume parsing, proposal/SOW parsing, and vendor website intelligence remain disabled
+              until a configured provider key exists.
             </p>
             <Bot className="h-5 w-5 text-vc-blue" />
           </CardContent>

@@ -1,4 +1,4 @@
-import { TenantStatus, UserStatus } from "@prisma/client";
+import { AIJobStatus, AIJobType, AIProvider, TenantStatus, UserStatus } from "@prisma/client";
 import { z } from "zod";
 
 export const updateTenantSettingsSchema = z
@@ -46,6 +46,35 @@ export const updateAiProviderSettingSchema = z
   })
   .strict();
 
+export const parsingJobListQuerySchema = z.object({
+  status: z.enum(AIJobStatus).optional(),
+  jobType: z.enum(AIJobType).optional(),
+  provider: z.enum(AIProvider).optional(),
+});
+
+export const createParsingJobSchema = z
+  .object({
+    provider: z.enum(AIProvider),
+    jobType: z.enum(AIJobType),
+    sourceEntityType: z.enum(["candidate", "proposal", "vendor"]),
+    sourceEntityId: z.string().uuid(),
+    sourceDocumentName: z.string().trim().max(240).optional(),
+    sourceDocumentUrl: z.string().trim().url().optional(),
+  })
+  .strict();
+
+export const approveParsingJobSchema = z
+  .object({
+    approvedDataJson: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+
+export const rejectParsingJobSchema = z
+  .object({
+    rejectionReason: z.string().trim().min(2).max(1000),
+  })
+  .strict();
+
 export const createTenantSchema = z
   .object({
     name: z.string().min(2).max(120),
@@ -68,6 +97,10 @@ export const updateTenantStatusSchema = z
 export type AssignRolesInput = z.infer<typeof assignRolesSchema>;
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
+export type ApproveParsingJobInput = z.infer<typeof approveParsingJobSchema>;
+export type CreateParsingJobInput = z.infer<typeof createParsingJobSchema>;
+export type ParsingJobListQuery = z.infer<typeof parsingJobListQuerySchema>;
+export type RejectParsingJobInput = z.infer<typeof rejectParsingJobSchema>;
 export type UpdateAiProviderSettingInput = z.infer<typeof updateAiProviderSettingSchema>;
 export type UpdateTenantSettingsInput = z.infer<typeof updateTenantSettingsSchema>;
 export type UpdateTenantStatusInput = z.infer<typeof updateTenantStatusSchema>;

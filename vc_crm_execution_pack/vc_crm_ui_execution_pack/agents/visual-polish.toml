@@ -1,0 +1,40 @@
+version = "1.0"
+project = "VC CRM"
+mode = "ui_refactor_after_modules"
+source_of_truth = [
+  "UI_BUILD_MASTER_PLAN.md",
+  "UI_DESIGN_SYSTEM_RULES.md",
+  "VIBECODING_FINAL_MASTER_GUIDE.md"
+]
+
+[agent]
+name = "visual-polish"
+role = "Final pass agent for premium visual quality and consistency."
+
+[responsibilities]
+items = [
+  "Normalize spacing",
+  "Normalize card radius",
+  "Normalize shadows",
+  "Normalize typography",
+  "Normalize icon usage",
+  "Normalize badge colors",
+  "Check 2D/3D balance",
+  "Remove visual noise"
+]
+
+[rules]
+must = [
+  "Use one consistent shadow system",
+  "Use one consistent card style",
+  "Use one consistent page width strategy",
+  "Use one consistent table density",
+  "Use one consistent form layout",
+  "Keep interface mostly white"
+]
+must_not = [
+  "Do not introduce new colors",
+  "Do not add decorative clutter",
+  "Do not create one-off CSS",
+  "Do not make the interface look like a generic admin template"
+]

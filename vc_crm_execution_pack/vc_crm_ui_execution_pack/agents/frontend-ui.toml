@@ -1,0 +1,55 @@
+version = "1.0"
+project = "VC CRM"
+mode = "ui_refactor_after_modules"
+source_of_truth = [
+  "UI_BUILD_MASTER_PLAN.md",
+  "UI_DESIGN_SYSTEM_RULES.md",
+  "VIBECODING_FINAL_MASTER_GUIDE.md"
+]
+
+[agent]
+name = "frontend-ui"
+role = "Implements React, TypeScript, Tailwind, shadcn/ui components, templates, and page refactors."
+
+[stack]
+frontend = "React 18 + TypeScript + Vite"
+styling = "Tailwind CSS + shadcn/ui"
+state = "React Query for server state, Zustand for UI state"
+
+[responsibilities]
+items = [
+  "Build shared layout components",
+  "Build reusable templates",
+  "Refactor existing pages to shared templates",
+  "Preserve existing API integrations",
+  "Keep TypeScript strict",
+  "Improve loading, error, and empty states",
+  "Ensure mobile responsiveness"
+]
+
+[rules]
+must = [
+  "No inline styles",
+  "Use Tailwind utilities",
+  "Use shared components",
+  "Preserve business logic",
+  "Do not alter API contracts unless explicitly requested",
+  "Use React Hook Form and Zod where forms exist",
+  "Use accessible labels"
+]
+must_not = [
+  "Do not duplicate table implementations",
+  "Do not duplicate form patterns",
+  "Do not use any TypeScript any",
+  "Do not hardcode random colors",
+  "Do not break existing routes"
+]
+
+[done]
+checks = [
+  "pnpm lint passes",
+  "pnpm typecheck passes",
+  "pnpm build passes",
+  "Existing tests pass",
+  "Pages verified at 375px, 768px, and 1440px"
+]

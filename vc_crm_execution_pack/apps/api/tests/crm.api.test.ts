@@ -20,6 +20,41 @@ beforeEach((): void => {
 });
 
 afterAll(async (): Promise<void> => {
+  await prisma.placement.deleteMany({
+    where: {
+      OR: [
+        { requirement: { roleTitle: { contains: "CRM Test" } } },
+        { candidate: { email: { endsWith: `@${testDomain}` } } },
+      ],
+    },
+  });
+  await prisma.interview.deleteMany({
+    where: {
+      OR: [
+        { requirement: { roleTitle: { contains: "CRM Test" } } },
+        { candidate: { email: { endsWith: `@${testDomain}` } } },
+      ],
+    },
+  });
+  await prisma.candidateSubmission.deleteMany({
+    where: {
+      OR: [
+        { requirement: { roleTitle: { contains: "CRM Test" } } },
+        { candidate: { email: { endsWith: `@${testDomain}` } } },
+      ],
+    },
+  });
+  await prisma.staffAugRequirement.deleteMany({
+    where: { roleTitle: { contains: "CRM Test" } },
+  });
+  await prisma.candidate.deleteMany({
+    where: {
+      OR: [{ email: { endsWith: `@${testDomain}` } }, { firstName: { contains: "CRM Test" } }],
+    },
+  });
+  await prisma.vendor.deleteMany({
+    where: { name: { contains: "CRM Test" } },
+  });
   await prisma.crmActivity.deleteMany({
     where: { title: { contains: "CRM Test" } },
   });
@@ -56,6 +91,447 @@ afterAll(async (): Promise<void> => {
 });
 
 describe("crm API", (): void => {
+  it("supports interviews and placements with finance margin calculation", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const tenantId = await getDemoTenantId();
+    const requirement = await prisma.staffAugRequirement.create({
+      data: {
+        tenantId,
+        roleTitle: `CRM Test Placement Requirement ${randomUUID()}`,
+      },
+      select: { id: true },
+    });
+    const candidate = await prisma.candidate.create({
+      data: {
+        tenantId,
+        firstName: "CRM Test",
+        lastName: "Placed Candidate",
+        email: `placement-${randomUUID()}@${testDomain}`,
+      },
+      select: { id: true },
+    });
+    const submission = await prisma.candidateSubmission.create({
+      data: {
+        tenantId,
+        requirementId: requirement.id,
+        candidateId: candidate.id,
+      },
+      select: { id: true },
+    });
+
+    const interviewResponse = await request(app)
+      .post("/api/v1/interviews")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        submissionId: submission.id,
+        roundNumber: 1,
+        interviewer: "Client Panel",
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .expect(201);
+    const interviewId = String(getData(interviewResponse).id);
+    expect(getData(interviewResponse)).toMatchObject({
+      roundNumber: 1,
+      outcome: "PENDING",
+    });
+
+    await request(app)
+      .patch(`/api/v1/interviews/${interviewId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ outcome: "PASSED", feedback: "Approved for placement" })
+      .expect(200);
+    await request(app)
+      .get("/api/v1/interviews")
+      .query({ outcome: "PASSED" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    await request(app)
+      .post("/api/v1/placements")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        submissionId: submission.id,
+        clientBillingRateCents: 200000,
+        vendorCostCents: 250000,
+        joiningDate: new Date().toISOString(),
+      })
+      .expect(400);
+
+    const placementResponse = await request(app)
+      .post("/api/v1/placements")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        submissionId: submission.id,
+        clientBillingRateCents: 320000,
+        vendorCostCents: 240000,
+        joiningDate: new Date().toISOString(),
+        replacementPeriodDays: 60,
+        billingStatus: "ACTIVE",
+      })
+      .expect(201);
+    const placementId = String(getData(placementResponse).id);
+    expect(getData(placementResponse)).toMatchObject({
+      marginCents: 80000,
+      marginPercentBasis: 2500,
+      billingStatus: "ACTIVE",
+    });
+
+    await request(app)
+      .get(`/api/v1/placements/${placementId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get("/api/v1/placements")
+      .query({ billingStatus: "ACTIVE" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/interviews/${interviewId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/placements/${placementId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
+  it("supports requirement CRUD and candidate submission pipeline", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const tenantId = await getDemoTenantId();
+    const account = await prisma.account.create({
+      data: {
+        tenantId,
+        name: `CRM Test Requirement Account ${randomUUID()}`,
+      },
+      select: { id: true },
+    });
+    const candidate = await prisma.candidate.create({
+      data: {
+        tenantId,
+        firstName: "CRM Test",
+        lastName: "Submitted Candidate",
+        email: `submitted-${randomUUID()}@${testDomain}`,
+        primarySkills: ["React", "TypeScript"],
+      },
+      select: { id: true },
+    });
+
+    const created = await request(app)
+      .post("/api/v1/requirements")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        accountId: account.id,
+        roleTitle: `CRM Test Senior React ${randomUUID()}`,
+        skills: ["React", "TypeScript"],
+        minExperienceYears: 5,
+        maxExperienceYears: 8,
+        budgetMinCents: 2400000,
+        budgetMaxCents: 3200000,
+        location: "Ahmedabad",
+        workMode: "HYBRID",
+        positions: 3,
+        priority: "HIGH",
+        status: "OPEN",
+      })
+      .expect(201);
+    const requirement = getData(created);
+    const requirementId = String(requirement.id);
+
+    expect(requirement).toMatchObject({
+      accountId: account.id,
+      workMode: "HYBRID",
+      positions: 3,
+      priority: "HIGH",
+    });
+
+    await request(app)
+      .get("/api/v1/requirements")
+      .query({ search: "CRM Test Senior React", skill: "React", workMode: "HYBRID" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get(`/api/v1/requirements/${requirementId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    const submitted = await request(app)
+      .post(`/api/v1/requirements/${requirementId}/submissions`)
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        candidateId: candidate.id,
+        status: "TECHNICAL_REVIEW",
+        technicalReviewNotes: "Good skills match",
+      })
+      .expect(201);
+    const submissionId = String(getData(submitted).id);
+    expect(getData(submitted)).toMatchObject({ status: "TECHNICAL_REVIEW" });
+
+    await request(app)
+      .post(`/api/v1/requirements/${requirementId}/submissions`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ candidateId: candidate.id })
+      .expect(409);
+    await request(app)
+      .patch(`/api/v1/submissions/${submissionId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        status: "INTERVIEW_SCHEDULED",
+        interviewPlaceholder: "Client panel placeholder",
+        feedback: "Proceed to first round",
+        feedbackRating: 4,
+      })
+      .expect(200);
+    await request(app)
+      .get(`/api/v1/requirements/${requirementId}/submissions`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get("/api/v1/submissions")
+      .query({ requirementId, status: "INTERVIEW_SCHEDULED" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/submissions/${submissionId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/requirements/${requirementId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
+  it("enforces requirement RBAC and tenant isolation", async (): Promise<void> => {
+    const token = await login(await createUserWithoutCrmPermissions());
+
+    await request(app)
+      .get("/api/v1/requirements")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+
+    const tenantToken = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: `CRM Test Requirement Other ${randomUUID()}`,
+        slug: `requirement-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      },
+      select: { id: true },
+    });
+    const otherRequirement = await prisma.staffAugRequirement.create({
+      data: {
+        tenantId: otherTenant.id,
+        roleTitle: `CRM Test Other Requirement ${randomUUID()}`,
+      },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get(`/api/v1/requirements/${otherRequirement.id}`)
+      .set("authorization", `Bearer ${tenantToken}`)
+      .expect(404);
+  });
+
+  it("supports candidate CRUD, resume metadata, consent, vendor links, and duplicate checks", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const tenantId = await getDemoTenantId();
+    const vendor = await prisma.vendor.create({
+      data: {
+        tenantId,
+        name: `CRM Test Candidate Vendor ${randomUUID()}`,
+        companyOwnershipTag: "Virtual Coders",
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+    const email = `candidate-api-${randomUUID()}@${testDomain}`;
+    const phone = `+91 ${randomUUID().slice(0, 8)}`;
+    const created = await request(app)
+      .post("/api/v1/candidates")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        vendorId: vendor.id,
+        firstName: "CRM Test",
+        lastName: "Candidate",
+        email,
+        phone,
+        resumeFileName: "crm-test-candidate.pdf",
+        resumeStorageKey: `resumes/${randomUUID()}.pdf`,
+        resumeMimeType: "application/pdf",
+        resumeSizeBytes: 256000,
+        primarySkills: ["React", "TypeScript"],
+        secondarySkills: ["Node.js"],
+        experienceYears: 6,
+        currentCtcCents: 1800000,
+        expectedCtcCents: 2600000,
+        noticePeriodDays: 30,
+        city: "Ahmedabad",
+        country: "India",
+        availability: "NOTICE_PERIOD",
+        consentStatus: true,
+      })
+      .expect(201);
+    const candidate = getData(created);
+    const candidateId = String(candidate.id);
+
+    expect(candidate).toMatchObject({
+      email,
+      vendorId: vendor.id,
+      resumeParseStatus: "QUEUED",
+      consentStatus: true,
+    });
+
+    await request(app)
+      .get("/api/v1/candidates")
+      .query({ search: "CRM Test", primarySkill: "React", availability: "NOTICE_PERIOD" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get(`/api/v1/candidates/${candidateId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .post("/api/v1/candidates")
+      .set("authorization", `Bearer ${token}`)
+      .send({ firstName: "Dup", lastName: "Candidate", email })
+      .expect(409);
+    await request(app)
+      .patch(`/api/v1/candidates/${candidateId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ blacklisted: true })
+      .expect(400);
+    await request(app)
+      .patch(`/api/v1/candidates/${candidateId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ blacklisted: true, blacklistReason: "Duplicate profile" })
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/candidates/${candidateId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
+  it("enforces candidate RBAC and tenant isolation", async (): Promise<void> => {
+    const token = await login(await createUserWithoutCrmPermissions());
+
+    await request(app)
+      .get("/api/v1/candidates")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+
+    const tenantToken = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: `CRM Test Candidate Other ${randomUUID()}`,
+        slug: `candidate-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      },
+      select: { id: true },
+    });
+    const otherCandidate = await prisma.candidate.create({
+      data: {
+        tenantId: otherTenant.id,
+        firstName: "Other",
+        lastName: "Candidate",
+      },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get(`/api/v1/candidates/${otherCandidate.id}`)
+      .set("authorization", `Bearer ${tenantToken}`)
+      .expect(404);
+  });
+
+  it("supports vendor CRUD, scorecards, documents, portal fields, and warnings", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const name = `CRM Test Vendor ${randomUUID()}`;
+    const created = await request(app)
+      .post("/api/v1/vendors")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        name,
+        website: "https://crm-test-vendor.example.com",
+        categories: ["staffing", "salesforce"],
+        expertiseSkills: ["Salesforce", "QA automation"],
+        decisionMakerName: "Vendor Leader",
+        decisionMakerEmail: `vendor-${randomUUID()}@${testDomain}`,
+        city: "Pune",
+        country: "India",
+        companyOwnershipTag: "Virtual Coders",
+        ndaStatus: "SIGNED",
+        msaStatus: "REQUESTED",
+        rateCard: { currency: "INR", roles: [{ role: "QA Engineer", monthly: 180000 }] },
+        tier: "PREFERRED",
+        status: "ACTIVE",
+        deliveryScore: 80,
+        qualityScore: 80,
+        responsivenessScore: 80,
+        complianceScore: 100,
+        portalEnabled: true,
+        portalSlug: `crm-test-${randomUUID().replaceAll("-", "").slice(0, 10)}`,
+      })
+      .expect(201);
+    const vendorId = String(getData(created).id);
+
+    expect(getData(created)).toMatchObject({
+      name,
+      tier: "PREFERRED",
+      ndaStatus: "SIGNED",
+      overallScore: 85,
+      portalEnabled: true,
+    });
+
+    await request(app)
+      .get("/api/v1/vendors")
+      .query({ search: "CRM Test Vendor", skill: "Salesforce", category: "staffing" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .patch(`/api/v1/vendors/${vendorId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ riskStatus: "BLACKLISTED" })
+      .expect(400);
+    await request(app)
+      .patch(`/api/v1/vendors/${vendorId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ riskStatus: "WARNING", riskReason: "Reference check pending" })
+      .expect(200);
+    await request(app)
+      .get(`/api/v1/vendors/${vendorId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .delete(`/api/v1/vendors/${vendorId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
+  it("enforces vendor RBAC and tenant isolation", async (): Promise<void> => {
+    const token = await login(await createUserWithoutCrmPermissions());
+
+    await request(app).get("/api/v1/vendors").set("authorization", `Bearer ${token}`).expect(403);
+
+    const tenantToken = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: `CRM Test Vendor Other ${randomUUID()}`,
+        slug: `vendor-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      },
+      select: { id: true },
+    });
+    const otherVendor = await prisma.vendor.create({
+      data: {
+        tenantId: otherTenant.id,
+        name: `CRM Test Other Vendor ${randomUUID()}`,
+        companyOwnershipTag: "Other Co",
+      },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get(`/api/v1/vendors/${otherVendor.id}`)
+      .set("authorization", `Bearer ${tenantToken}`)
+      .expect(404);
+  });
+
   it("supports proposal CRUD, versioning, approvals, and PDF export placeholder", async (): Promise<void> => {
     const token = await login("tenant.admin@virtualcoders.local");
     const account = await prisma.account.create({

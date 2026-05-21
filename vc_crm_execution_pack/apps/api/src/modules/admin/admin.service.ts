@@ -1,21 +1,37 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import bcrypt from "bcrypt";
-import { Prisma, RoleScope, UserStatus } from "@prisma/client";
+import { AIJobStatus, AIJobType, AIProvider, Prisma, RoleScope, UserStatus } from "@prisma/client";
 
 import { encryptSecret } from "../../shared/security/encryption.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { prisma } from "../../shared/prisma/client.js";
 import type {
   AssignRolesInput,
+  ApproveParsingJobInput,
+  CreateParsingJobInput,
   CreateTenantInput,
   InviteUserInput,
+  ParsingJobListQuery,
+  RejectParsingJobInput,
   UpdateAiProviderSettingInput,
   UpdateTenantSettingsInput,
   UpdateTenantStatusInput,
   UpdateUserStatusInput,
 } from "./admin.schema.js";
 import type { AdminActor, AdminRequestContext } from "./admin.types.js";
+
+export type DocumentParsingService = {
+  createParsingJob(
+    actor: AdminActor,
+    context: AdminRequestContext,
+    input: CreateParsingJobInput,
+  ): Promise<unknown>;
+};
+
+export type ResumeParsingService = DocumentParsingService;
+export type ProposalSowParsingService = DocumentParsingService;
+export type VendorWebsiteIntelligenceService = DocumentParsingService;
 
 export async function getAdminSummary(actor: AdminActor): Promise<Record<string, number>> {
   const tenantFilter = getTenantFilter(actor);
@@ -393,17 +409,18 @@ export async function updateAiProviderSetting(
   input: UpdateAiProviderSettingInput,
 ): Promise<unknown> {
   const tenantId = requireActorTenant(actor);
+  const providerKey = providerToSettingKey(parseProvider(provider));
   const encrypted = input.apiKey === undefined ? undefined : encryptSecret(input.apiKey);
   const setting = await prisma.aIProviderSetting.upsert({
     where: {
       tenantId_provider: {
         tenantId,
-        provider,
+        provider: providerKey,
       },
     },
     create: {
       tenantId,
-      provider,
+      provider: providerKey,
       defaultModel: input.defaultModel,
       enabled: input.enabled,
       monthlyBudgetCents: input.monthlyBudgetCents,
@@ -434,10 +451,200 @@ export async function updateAiProviderSetting(
     entityType: "ai_provider_setting",
     entityId: setting.id,
     tenantId,
-    metadata: { provider, enabled: input.enabled, keyUpdated: encrypted !== undefined },
+    metadata: {
+      provider: providerKey,
+      enabled: input.enabled,
+      keyUpdated: encrypted !== undefined,
+    },
   });
 
   return redactAiProviderSetting(setting);
+}
+
+export async function listParsingJobs(
+  actor: AdminActor,
+  query: ParsingJobListQuery,
+): Promise<unknown[]> {
+  const tenantId = requireActorTenant(actor);
+
+  return prisma.documentParsingJob.findMany({
+    where: {
+      tenantId,
+      deletedAt: null,
+      ...(query.provider === undefined ? {} : { provider: query.provider }),
+      ...(query.jobType === undefined ? {} : { jobType: query.jobType }),
+      ...(query.status === undefined ? {} : { status: query.status as AIJobStatus }),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: parsingJobSelect,
+  });
+}
+
+export async function getParsingJob(actor: AdminActor, jobId: string): Promise<unknown> {
+  const tenantId = requireActorTenant(actor);
+  const job = await prisma.documentParsingJob.findFirst({
+    where: { id: jobId, tenantId, deletedAt: null },
+    select: parsingJobSelect,
+  });
+
+  if (job === null) {
+    throw new AppError("NOT_FOUND", "Parsing job not found", 404);
+  }
+
+  return job;
+}
+
+export async function createParsingJob(
+  actor: AdminActor,
+  context: AdminRequestContext,
+  input: CreateParsingJobInput,
+): Promise<unknown> {
+  const tenantId = requireActorTenant(actor);
+  await assertSourceBelongsToTenant(tenantId, input);
+  const providerSetting = await getConfiguredProviderSetting(tenantId, input.provider);
+  const parsedDataJson = buildPlaceholderParsedData(input);
+  const job = await prisma.documentParsingJob.create({
+    data: {
+      tenantId,
+      provider: input.provider,
+      jobType: input.jobType,
+      sourceEntityType: input.sourceEntityType,
+      sourceEntityId: input.sourceEntityId,
+      sourceDocumentName: input.sourceDocumentName,
+      sourceDocumentUrl: input.sourceDocumentUrl,
+      model: providerSetting.defaultModel,
+      status: AIJobStatus.REVIEW_READY,
+      attempts: 1,
+      parsedDataJson,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      estimatedCostCents: 0,
+      createdById: actor.sub,
+      usageLogs: {
+        create: {
+          tenantId,
+          provider: input.provider,
+          model: providerSetting.defaultModel,
+          feature: input.jobType,
+          status: "SKIPPED",
+          failureReason: "External AI call skipped in foundation mode.",
+        },
+      },
+    },
+    select: parsingJobSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "admin.ai_parsing_job.created",
+    entityType: "document_parsing_job",
+    entityId: getId(job),
+    tenantId,
+    metadata: { provider: input.provider, jobType: input.jobType },
+  });
+
+  return job;
+}
+
+export async function approveParsingJob(
+  actor: AdminActor,
+  context: AdminRequestContext,
+  jobId: string,
+  input: ApproveParsingJobInput,
+): Promise<unknown> {
+  const tenantId = requireActorTenant(actor);
+  await assertParsingJobStatus(tenantId, jobId, [AIJobStatus.REVIEW_READY]);
+  const job = await prisma.documentParsingJob.update({
+    where: { id: jobId },
+    data: {
+      status: AIJobStatus.APPROVED,
+      approvedDataJson: input.approvedDataJson as Prisma.InputJsonValue,
+      approvedAt: new Date(),
+      approvedById: actor.sub,
+      updatedById: actor.sub,
+    },
+    select: parsingJobSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "admin.ai_parsing_job.approved",
+    entityType: "document_parsing_job",
+    entityId: jobId,
+    tenantId,
+  });
+
+  return job;
+}
+
+export async function rejectParsingJob(
+  actor: AdminActor,
+  context: AdminRequestContext,
+  jobId: string,
+  input: RejectParsingJobInput,
+): Promise<unknown> {
+  const tenantId = requireActorTenant(actor);
+  await assertParsingJobStatus(tenantId, jobId, [AIJobStatus.REVIEW_READY, AIJobStatus.APPROVED]);
+  const job = await prisma.documentParsingJob.update({
+    where: { id: jobId },
+    data: {
+      status: AIJobStatus.REJECTED,
+      rejectionReason: input.rejectionReason,
+      updatedById: actor.sub,
+    },
+    select: parsingJobSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "admin.ai_parsing_job.rejected",
+    entityType: "document_parsing_job",
+    entityId: jobId,
+    tenantId,
+    metadata: { rejectionReason: input.rejectionReason },
+  });
+
+  return job;
+}
+
+export async function saveApprovedParsedData(
+  actor: AdminActor,
+  context: AdminRequestContext,
+  jobId: string,
+): Promise<unknown> {
+  const tenantId = requireActorTenant(actor);
+  const job = await assertParsingJobStatus(tenantId, jobId, [AIJobStatus.APPROVED]);
+
+  if (job.approvedDataJson === null) {
+    throw new AppError("VALIDATION_ERROR", "Approved parsed data is required before saving", 400);
+  }
+
+  if (job.jobType === AIJobType.RESUME_PARSE && job.sourceEntityType === "candidate") {
+    await prisma.candidate.update({
+      where: { id: job.sourceEntityId },
+      data: {
+        parsedResumeJson: job.approvedDataJson as Prisma.InputJsonValue,
+        resumeParsed: true,
+        resumeParseStatus: "SAVED",
+        updatedById: actor.sub,
+      },
+    });
+  }
+
+  const savedJob = await prisma.documentParsingJob.update({
+    where: { id: jobId },
+    data: { status: AIJobStatus.SAVED, savedAt: new Date(), updatedById: actor.sub },
+    select: parsingJobSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "admin.ai_parsing_job.saved",
+    entityType: "document_parsing_job",
+    entityId: jobId,
+    tenantId,
+    metadata: { jobType: job.jobType, sourceEntityType: job.sourceEntityType },
+  });
+
+  return savedJob;
 }
 
 const userSelect = {
@@ -473,6 +680,49 @@ const aiProviderSelect = {
   keyLastFour: true,
   updatedAt: true,
 };
+
+const parsingJobSelect = {
+  id: true,
+  tenantId: true,
+  provider: true,
+  jobType: true,
+  status: true,
+  sourceEntityType: true,
+  sourceEntityId: true,
+  sourceDocumentName: true,
+  sourceDocumentUrl: true,
+  model: true,
+  parsedDataJson: true,
+  approvedDataJson: true,
+  rejectionReason: true,
+  failureReason: true,
+  attempts: true,
+  maxAttempts: true,
+  retryAt: true,
+  promptTokens: true,
+  completionTokens: true,
+  totalTokens: true,
+  estimatedCostCents: true,
+  approvedAt: true,
+  savedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  usageLogs: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      provider: true,
+      model: true,
+      feature: true,
+      totalTokens: true,
+      estimatedCostCents: true,
+      status: true,
+      failureReason: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: Prisma.SortOrder.desc },
+  },
+} satisfies Prisma.DocumentParsingJobSelect;
 
 function getTenantFilter(actor: AdminActor): { tenantId?: string | null } {
   if (actor.isSuperAdmin) {
@@ -557,6 +807,155 @@ async function ensureDefaultAiProviderSettings(tenantId: string): Promise<void> 
       update: {},
     });
   }
+}
+
+function parseProvider(provider: string): AIProvider {
+  const normalized = provider.trim().toUpperCase();
+
+  if (!["OPENAI", "ANTHROPIC", "GEMINI"].includes(normalized)) {
+    throw new AppError("VAL_001", "Provider must be OpenAI, Anthropic, or Gemini", 400);
+  }
+
+  return normalized as AIProvider;
+}
+
+function providerToSettingKey(provider: AIProvider): string {
+  return provider.toLowerCase();
+}
+
+async function getConfiguredProviderSetting(
+  tenantId: string,
+  provider: AIProvider,
+): Promise<{ defaultModel: string }> {
+  const setting = await prisma.aIProviderSetting.findUnique({
+    where: { tenantId_provider: { tenantId, provider: providerToSettingKey(provider) } },
+    select: {
+      defaultModel: true,
+      enabled: true,
+      encryptedApiKey: true,
+      deletedAt: true,
+    },
+  });
+
+  if (
+    setting === null ||
+    setting.deletedAt !== null ||
+    !setting.enabled ||
+    setting.encryptedApiKey === null
+  ) {
+    throw new AppError("AI_KEY_MISSING", "AI provider key is not configured for this tenant", 400);
+  }
+
+  return { defaultModel: setting.defaultModel };
+}
+
+async function assertSourceBelongsToTenant(
+  tenantId: string,
+  input: { sourceEntityType: string; sourceEntityId: string },
+): Promise<void> {
+  if (input.sourceEntityType === "candidate") {
+    const candidate = await prisma.candidate.findFirst({
+      where: { id: input.sourceEntityId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (candidate === null) {
+      throw new AppError("NOT_FOUND", "Candidate not found", 404);
+    }
+
+    return;
+  }
+
+  if (input.sourceEntityType === "proposal") {
+    const proposal = await prisma.proposal.findFirst({
+      where: { id: input.sourceEntityId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (proposal === null) {
+      throw new AppError("NOT_FOUND", "Proposal not found", 404);
+    }
+
+    return;
+  }
+
+  const vendor = await prisma.vendor.findFirst({
+    where: { id: input.sourceEntityId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (vendor === null) {
+    throw new AppError("NOT_FOUND", "Vendor not found", 404);
+  }
+}
+
+function buildPlaceholderParsedData(input: CreateParsingJobInput): Prisma.InputJsonValue {
+  if (input.jobType === AIJobType.RESUME_PARSE) {
+    return {
+      reviewRequired: true,
+      fields: {
+        firstName: "Review required",
+        primarySkills: [],
+        experienceYears: null,
+        location: null,
+      },
+      sourceDocumentName: input.sourceDocumentName,
+    };
+  }
+
+  if (input.jobType === AIJobType.PROPOSAL_SOW_PARSE) {
+    return {
+      reviewRequired: true,
+      fields: {
+        scopeSummary: "Review required",
+        assumptions: [],
+        deliverables: [],
+      },
+      sourceDocumentName: input.sourceDocumentName,
+    };
+  }
+
+  return {
+    reviewRequired: true,
+    fields: {
+      companySummary: "Vendor website intelligence placeholder",
+      services: [],
+      confidence: "low",
+    },
+    sourceDocumentUrl: input.sourceDocumentUrl,
+  };
+}
+
+async function assertParsingJobStatus(
+  tenantId: string,
+  jobId: string,
+  allowedStatuses: AIJobStatus[],
+): Promise<{
+  jobType: AIJobType;
+  sourceEntityType: string;
+  sourceEntityId: string;
+  approvedDataJson: Prisma.JsonValue | null;
+}> {
+  const job = await prisma.documentParsingJob.findFirst({
+    where: { id: jobId, tenantId, deletedAt: null },
+    select: {
+      status: true,
+      jobType: true,
+      sourceEntityType: true,
+      sourceEntityId: true,
+      approvedDataJson: true,
+    },
+  });
+
+  if (job === null) {
+    throw new AppError("NOT_FOUND", "Parsing job not found", 404);
+  }
+
+  if (!allowedStatuses.includes(job.status)) {
+    throw new AppError("VALIDATION_ERROR", "Parsing job is not in the required review state", 400);
+  }
+
+  return job;
 }
 
 async function createAuditLog(

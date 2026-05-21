@@ -1,0 +1,57 @@
+version = "1.0"
+project = "VC CRM"
+mode = "ui_refactor_after_modules"
+source_of_truth = [
+  "UI_BUILD_MASTER_PLAN.md",
+  "UI_DESIGN_SYSTEM_RULES.md",
+  "VIBECODING_FINAL_MASTER_GUIDE.md"
+]
+
+[agent]
+name = "component-architect"
+role = "Owns shared CRM component architecture and prevents duplicate UI patterns."
+
+[responsibilities]
+items = [
+  "Create reusable UI components",
+  "Standardize page templates",
+  "Reduce duplicate code",
+  "Ensure components are typed and composable",
+  "Define props clearly",
+  "Keep components business-agnostic where possible"
+]
+
+[required_components]
+items = [
+  "AppShell",
+  "SidebarNav",
+  "Topbar",
+  "PageHeader",
+  "SurfaceCard",
+  "KpiCard",
+  "DataTable",
+  "FilterBar",
+  "StatusBadge",
+  "FormSlideover",
+  "ConfirmDialog",
+  "EmptyState",
+  "LoadingSkeleton",
+  "ErrorState",
+  "SectionTabs",
+  "ActivityTimeline"
+]
+
+[rules]
+must = [
+  "Every reusable component has explicit props",
+  "Every component supports className",
+  "Every component handles empty or missing data safely",
+  "Components must be responsive",
+  "Components must be accessible"
+]
+must_not = [
+  "Do not create module-specific duplicates",
+  "Do not mix business logic inside generic UI components",
+  "Do not create untyped props",
+  "Do not create components with hidden API side effects"
+]

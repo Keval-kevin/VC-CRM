@@ -6,31 +6,399 @@ import {
   createCrmActivity,
   convertLeadToOpportunity,
   createAccount,
+  createCandidate,
   createContact,
+  createInterview,
   createLead,
   createOpportunity,
+  createPlacement,
   createProposal,
   createProposalVersion,
+  createRequirement,
+  createVendor,
   decideProposal,
+  deleteCandidate,
+  deleteInterview,
+  deletePlacement,
+  deleteRequirement,
+  deleteSubmission,
+  deleteVendor,
+  listCandidates,
   listCrmActivities,
+  listInterviews,
+  listPlacements,
+  listRequirements,
+  listSubmissions,
   listProposals,
+  listVendors,
   deleteAccount,
   deleteLead,
   requestProposalPdfExport,
   submitProposal,
   updateCrmActivity,
+  updateCandidate,
+  updateVendor,
   listOpportunities,
   listOpportunityPipeline,
   listAccounts,
   listLeads,
   updateContact,
+  updateInterview,
   updateLead,
   updateOpportunity,
+  updatePlacement,
+  submitCandidateToRequirement,
+  updateRequirement,
+  updateSubmission,
 } from "../src/modules/crm/crm.service.js";
 import type { CrmActor } from "../src/modules/crm/crm.types.js";
 import { prisma } from "../src/shared/prisma/client.js";
 
 describe("crm service", (): void => {
+  it("schedules interviews and creates placements with calculated margins", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const account = await createAccount(actor, {}, { name: `Interview Account ${randomUUID()}` });
+    const vendor = await createVendor(
+      actor,
+      {},
+      { name: `Interview Vendor ${randomUUID()}`, companyOwnershipTag: "Virtual Coders" },
+    );
+    const candidate = await createCandidate(
+      actor,
+      {},
+      {
+        vendorId: getId(vendor),
+        firstName: "Interview",
+        lastName: "Candidate",
+        email: `interview-${randomUUID()}@example.com`,
+      },
+    );
+    const requirement = await createRequirement(
+      actor,
+      {},
+      {
+        accountId: getId(account),
+        roleTitle: `Interview Requirement ${randomUUID()}`,
+        skills: ["React"],
+      },
+    );
+    const submission = await submitCandidateToRequirement(actor, {}, getId(requirement), {
+      candidateId: getId(candidate),
+    });
+
+    const interview = await createInterview(
+      actor,
+      {},
+      {
+        submissionId: getId(submission),
+        roundNumber: 1,
+        interviewer: "Client Panel",
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    );
+    const interviewId = getId(interview);
+    expect(interview).toMatchObject({ roundNumber: 1, outcome: "PENDING" });
+
+    const passed = await updateInterview(actor, {}, interviewId, {
+      outcome: "PASSED",
+      feedback: "Strong communication and technical depth",
+    });
+    expect(passed).toMatchObject({ outcome: "PASSED" });
+
+    const listedInterviews = await listInterviews(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      outcome: "PASSED",
+    });
+    expect(listedInterviews.items.some((item) => getId(item) === interviewId)).toBe(true);
+
+    await expect(
+      createPlacement(
+        actor,
+        {},
+        {
+          submissionId: getId(submission),
+          clientBillingRateCents: 200_000,
+          vendorCostCents: 250_000,
+          joiningDate: new Date(),
+        },
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+
+    const placement = await createPlacement(
+      actor,
+      {},
+      {
+        submissionId: getId(submission),
+        clientBillingRateCents: 320_000,
+        vendorCostCents: 240_000,
+        joiningDate: new Date(),
+        replacementPeriodDays: 60,
+        billingStatus: "ACTIVE",
+      },
+    );
+    const placementId = getId(placement);
+    expect(placement).toMatchObject({
+      marginCents: 80_000,
+      marginPercentBasis: 2500,
+      billingStatus: "ACTIVE",
+    });
+
+    const updatedPlacement = await updatePlacement(actor, {}, placementId, {
+      clientBillingRateCents: 400_000,
+    });
+    expect(updatedPlacement).toMatchObject({ marginCents: 160_000, marginPercentBasis: 4000 });
+
+    const listedPlacements = await listPlacements(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      billingStatus: "ACTIVE",
+    });
+    expect(listedPlacements.items.some((item) => getId(item) === placementId)).toBe(true);
+
+    await deleteInterview(actor, {}, interviewId);
+    await deletePlacement(actor, {}, placementId);
+  });
+
+  it("creates requirements and tracks candidate submissions without duplicates", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const account = await createAccount(actor, {}, { name: `Requirement Account ${randomUUID()}` });
+    const vendor = await createVendor(
+      actor,
+      {},
+      { name: `Requirement Vendor ${randomUUID()}`, companyOwnershipTag: "Virtual Coders" },
+    );
+    const candidate = await createCandidate(
+      actor,
+      {},
+      {
+        vendorId: getId(vendor),
+        firstName: "Submit",
+        lastName: "Candidate",
+        email: `submission-${randomUUID()}@example.com`,
+        primarySkills: ["React", "TypeScript"],
+      },
+    );
+    const requirement = await createRequirement(
+      actor,
+      {},
+      {
+        accountId: getId(account),
+        roleTitle: `React Requirement ${randomUUID()}`,
+        skills: ["React", "TypeScript"],
+        minExperienceYears: 4,
+        maxExperienceYears: 8,
+        budgetMinCents: 2_000_000,
+        budgetMaxCents: 3_200_000,
+        location: "Ahmedabad",
+        workMode: "HYBRID",
+        positions: 2,
+        priority: "HIGH",
+        status: "OPEN",
+      },
+    );
+    const requirementId = getId(requirement);
+
+    const listed = await listRequirements(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      skill: "React",
+      workMode: "HYBRID",
+    });
+    expect(listed.items.some((item) => getId(item) === requirementId)).toBe(true);
+
+    const submission = await submitCandidateToRequirement(actor, {}, requirementId, {
+      candidateId: getId(candidate),
+      status: "TECHNICAL_REVIEW",
+      technicalReviewNotes: "Strong React fundamentals",
+    });
+    const submissionId = getId(submission);
+    expect(submission).toMatchObject({
+      status: "TECHNICAL_REVIEW",
+      vendorId: getId(vendor),
+    });
+
+    await expect(
+      submitCandidateToRequirement(actor, {}, requirementId, { candidateId: getId(candidate) }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    const clientSubmitted = await updateSubmission(actor, {}, submissionId, {
+      status: "CLIENT_SUBMITTED",
+    });
+    expect(clientSubmitted).toMatchObject({ status: "CLIENT_SUBMITTED" });
+    expect((clientSubmitted as { clientSubmittedAt?: Date }).clientSubmittedAt).toBeInstanceOf(
+      Date,
+    );
+
+    const tracked = await listSubmissions(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      requirementId,
+      status: "CLIENT_SUBMITTED",
+    });
+    expect(tracked.items.some((item) => getId(item) === submissionId)).toBe(true);
+
+    await updateRequirement(actor, {}, requirementId, { status: "ON_HOLD" });
+    await deleteSubmission(actor, {}, submissionId);
+    await deleteRequirement(actor, {}, requirementId);
+  });
+
+  it("creates, filters, validates, updates, and soft deletes candidates", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const vendor = await createVendor(
+      actor,
+      {},
+      {
+        name: `Candidate Vendor ${randomUUID()}`,
+        companyOwnershipTag: "Virtual Coders",
+        status: "ACTIVE",
+      },
+    );
+    const email = `candidate-${randomUUID()}@example.com`;
+    const phone = `+91 ${randomUUID().slice(0, 8)}`;
+    const candidate = await createCandidate(
+      actor,
+      {},
+      {
+        vendorId: getId(vendor),
+        firstName: "Service",
+        lastName: "Candidate",
+        email,
+        phone,
+        resumeFileName: "service-candidate.pdf",
+        resumeStorageKey: `resumes/${randomUUID()}.pdf`,
+        resumeMimeType: "application/pdf",
+        resumeSizeBytes: 128_000,
+        primarySkills: ["React", "TypeScript"],
+        secondarySkills: ["Node.js"],
+        experienceYears: 5.5,
+        currentCtcCents: 1_800_000,
+        expectedCtcCents: 2_400_000,
+        noticePeriodDays: 30,
+        city: "Ahmedabad",
+        country: "India",
+        availability: "NOTICE_PERIOD",
+        consentStatus: true,
+      },
+    );
+    const candidateId = getId(candidate);
+
+    expect(candidate).toMatchObject({
+      resumeParseStatus: "QUEUED",
+      resumeParsed: false,
+      consentStatus: true,
+      vendorId: getId(vendor),
+    });
+    expect((candidate as { consentCapturedAt?: Date }).consentCapturedAt).toBeInstanceOf(Date);
+
+    const listed = await listCandidates(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      primarySkill: "React",
+      availability: "NOTICE_PERIOD",
+    });
+    expect(listed.items.some((item) => getId(item) === candidateId)).toBe(true);
+
+    await expect(
+      createCandidate(actor, {}, { firstName: "Duplicate", lastName: "Candidate", email }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      createCandidate(actor, {}, { firstName: "Duplicate", lastName: "Phone", phone }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      updateCandidate(actor, {}, candidateId, { blacklisted: true }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+
+    const blacklisted = await updateCandidate(actor, {}, candidateId, {
+      blacklisted: true,
+      blacklistReason: "Duplicate profile under review",
+    });
+    expect(blacklisted).toMatchObject({
+      blacklisted: true,
+      blacklistReason: "Duplicate profile under review",
+    });
+
+    await deleteCandidate(actor, {}, candidateId);
+    const deleted = await prisma.candidate.findUniqueOrThrow({
+      where: { id: candidateId },
+      select: { deletedAt: true },
+    });
+    expect(deleted.deletedAt).toBeInstanceOf(Date);
+  });
+
+  it("creates, filters, scores, updates, and soft deletes vendors", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const vendor = await createVendor(
+      actor,
+      {},
+      {
+        name: `Vendor ${randomUUID()}`,
+        website: `https://${randomUUID()}.vendor.example.com`,
+        categories: ["staffing", "implementation"],
+        expertiseSkills: ["React", "Node.js", "AWS"],
+        decisionMakerName: "Priya Vendor",
+        decisionMakerEmail: `vendor-${randomUUID()}@example.com`,
+        city: "Ahmedabad",
+        state: "Gujarat",
+        country: "India",
+        companyOwnershipTag: "Virtual Coders",
+        ndaStatus: "SIGNED",
+        msaStatus: "IN_REVIEW",
+        rateCard: { currency: "INR", roles: [{ role: "React Developer", monthly: 250000 }] },
+        tier: "PREFERRED",
+        status: "ACTIVE",
+        deliveryScore: 80,
+        qualityScore: 90,
+        responsivenessScore: 70,
+        complianceScore: 100,
+        portalEnabled: true,
+        portalSlug: `vendor-${randomUUID().replaceAll("-", "").slice(0, 10)}`,
+      },
+    );
+    const vendorId = getId(vendor);
+
+    expect(vendor).toMatchObject({
+      ndaStatus: "SIGNED",
+      msaStatus: "IN_REVIEW",
+      tier: "PREFERRED",
+      overallScore: 85,
+      portalEnabled: true,
+    });
+
+    const listed = await listVendors(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      skill: "React",
+      category: "staffing",
+      riskStatus: "CLEAR",
+    });
+    expect(listed.items.some((item) => getId(item) === vendorId)).toBe(true);
+
+    await expect(
+      updateVendor(actor, {}, vendorId, { riskStatus: "BLACKLISTED" }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+
+    const warned = await updateVendor(actor, {}, vendorId, {
+      riskStatus: "WARNING",
+      riskReason: "SLA misses",
+      responsivenessScore: 60,
+    });
+    expect(warned).toMatchObject({ riskStatus: "WARNING", riskReason: "SLA misses" });
+
+    await deleteVendor(actor, {}, vendorId);
+    const deleted = await prisma.vendor.findUniqueOrThrow({
+      where: { id: vendorId },
+      select: { deletedAt: true },
+    });
+    expect(deleted.deletedAt).toBeInstanceOf(Date);
+  });
+
   it("creates proposal versions and approval workflow records", async (): Promise<void> => {
     const actor = await getTenantActor();
     const account = await createAccount(actor, {}, { name: `Proposal Account ${randomUUID()}` });

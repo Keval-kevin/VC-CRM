@@ -6,18 +6,24 @@ import { requireAuth } from "../../shared/middleware/auth.middleware.js";
 import { requirePermission } from "../../shared/middleware/rbac.middleware.js";
 import { requireTenant } from "../../shared/middleware/tenant.middleware.js";
 import {
+  approveParsingJobController,
   assignUserRolesController,
   createTenantController,
+  createParsingJobController,
+  getParsingJobController,
   getTenantSettingsController,
   inviteUserController,
   listAiProviderSettingsController,
   listAuditLogsController,
+  listParsingJobsController,
   listPermissionsController,
   listRolesController,
   listTenantsController,
   listUserSessionsController,
   listUsersController,
   summaryController,
+  rejectParsingJobController,
+  saveParsingJobController,
   updateAiProviderSettingController,
   updateTenantSettingsController,
   updateTenantStatusController,
@@ -119,4 +125,41 @@ adminRouter.put(
   requireTenant,
   requirePermission(permissions.aiSettingsManage),
   asyncHandler(updateAiProviderSettingController),
+);
+
+adminRouter.get(
+  "/ai-parsing/jobs",
+  requireTenant,
+  requirePermission(permissions.aiSettingsManage),
+  asyncHandler(listParsingJobsController),
+);
+adminRouter.post(
+  "/ai-parsing/jobs",
+  requireTenant,
+  requirePermission(permissions.aiSettingsManage),
+  asyncHandler(createParsingJobController),
+);
+adminRouter.get(
+  "/ai-parsing/jobs/:jobId",
+  requireTenant,
+  requirePermission(permissions.aiSettingsManage),
+  asyncHandler(getParsingJobController),
+);
+adminRouter.post(
+  "/ai-parsing/jobs/:jobId/approve",
+  requireTenant,
+  requirePermission(permissions.aiSettingsManage),
+  asyncHandler(approveParsingJobController),
+);
+adminRouter.post(
+  "/ai-parsing/jobs/:jobId/reject",
+  requireTenant,
+  requirePermission(permissions.aiSettingsManage),
+  asyncHandler(rejectParsingJobController),
+);
+adminRouter.post(
+  "/ai-parsing/jobs/:jobId/save",
+  requireTenant,
+  requirePermission(permissions.aiSettingsManage),
+  asyncHandler(saveParsingJobController),
 );

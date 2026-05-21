@@ -30,10 +30,10 @@ describe("App", (): void => {
   });
 
   it("renders placeholder module pages with a table shell", (): void => {
-    renderApp("/requirements");
+    renderApp("/billing");
 
-    expect(screen.getByRole("heading", { name: "Requirements" })).toBeInTheDocument();
-    expect(screen.getByText("Requirements list shell")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Billing" })).toBeInTheDocument();
+    expect(screen.getByText("Billing list shell")).toBeInTheDocument();
   });
 
   it("renders proposal workflows and activity views", (): void => {
@@ -54,6 +54,76 @@ describe("App", (): void => {
     expect(screen.getAllByText("Activity timeline").length).toBeGreaterThan(0);
     expect(screen.getByText("Task list")).toBeInTheDocument();
     expect(screen.getByText("Reminder UI")).toBeInTheDocument();
+  });
+
+  it("renders vendor list and detail layouts", (): void => {
+    renderApp("/vendors");
+
+    expect(screen.getByRole("heading", { name: "Vendors" })).toBeInTheDocument();
+    expect(screen.getByText("Vendor list")).toBeInTheDocument();
+    expect(screen.getAllByText("TalentBridge Solutions").length).toBeGreaterThan(0);
+
+    renderApp("/vendors/vendor-1");
+    expect(screen.getByRole("heading", { name: "TalentBridge Solutions" })).toBeInTheDocument();
+    expect(screen.getByText("Document/status panel")).toBeInTheDocument();
+    expect(screen.getByText("Expertise tags")).toBeInTheDocument();
+    expect(screen.getByText("Scorecard tab")).toBeInTheDocument();
+    expect(screen.getByText("Candidates tab placeholder")).toBeInTheDocument();
+  });
+
+  it("renders candidate list and detail layouts", (): void => {
+    renderApp("/candidates");
+
+    expect(screen.getByRole("heading", { name: "Candidates" })).toBeInTheDocument();
+    expect(screen.getByText("Candidate list")).toBeInTheDocument();
+    expect(screen.getByText("Resume upload UI")).toBeInTheDocument();
+    expect(screen.getAllByText("Isha Mehta").length).toBeGreaterThan(0);
+
+    renderApp("/candidates/candidate-1");
+    expect(screen.getByRole("heading", { name: "Isha Mehta" })).toBeInTheDocument();
+    expect(screen.getByText("Skill filters")).toBeInTheDocument();
+    expect(screen.getByText("Resume upload")).toBeInTheDocument();
+    expect(screen.getByText("Parsed data review placeholder")).toBeInTheDocument();
+    expect(screen.getByText("Consent tracking")).toBeInTheDocument();
+  });
+
+  it("renders requirement and submission layouts", (): void => {
+    renderApp("/requirements");
+
+    expect(screen.getByRole("heading", { name: "Requirements" })).toBeInTheDocument();
+    expect(screen.getByText("Requirements list")).toBeInTheDocument();
+    expect(screen.getByText("Broadcast to vendors placeholder")).toBeInTheDocument();
+
+    renderApp("/requirements/req-1");
+    expect(screen.getByRole("heading", { name: "Senior React Engineer" })).toBeInTheDocument();
+    expect(screen.getByText("Requirement profile")).toBeInTheDocument();
+    expect(screen.getByText("Submission tracker")).toBeInTheDocument();
+    expect(screen.getByText("Candidate matching panel placeholder")).toBeInTheDocument();
+
+    renderApp("/submissions");
+    expect(screen.getByRole("heading", { name: "Submissions" })).toBeInTheDocument();
+    expect(screen.getByText("Feedback capture")).toBeInTheDocument();
+  });
+
+  it("renders interview and placement layouts", (): void => {
+    renderApp("/interviews");
+
+    expect(screen.getByRole("heading", { name: "Interviews" })).toBeInTheDocument();
+    expect(screen.getByText("Interview calendar/list")).toBeInTheDocument();
+    expect(screen.getAllByText("Schedule interview").length).toBeGreaterThan(0);
+
+    renderApp("/placements");
+    expect(screen.getByRole("heading", { name: "Placements" })).toBeInTheDocument();
+    expect(screen.getByText("Placement list")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Finance fields visible to authorized roles only").length,
+    ).toBeGreaterThan(0);
+
+    renderApp("/placements/placement-1");
+    expect(screen.getAllByRole("heading", { name: "Isha Mehta" }).length).toBeGreaterThan(0);
+    expect(screen.getByText("Placement timeline")).toBeInTheDocument();
+    expect(screen.getByText("Authorized finance fields")).toBeInTheDocument();
+    expect(screen.getByText("Margin calculation")).toBeInTheDocument();
   });
 
   it("renders opportunity pipeline and detail layouts", (): void => {
@@ -119,6 +189,19 @@ describe("App", (): void => {
     renderApp("/admin/ai-settings");
     expect(screen.getByRole("heading", { name: "AI settings" })).toBeInTheDocument();
     expect(screen.getByText("Secret write-only")).toBeInTheDocument();
+
+    renderApp("/admin/parsing-jobs");
+    expect(screen.getByRole("heading", { name: "Parsing jobs" })).toBeInTheDocument();
+    expect(screen.getByText("Document parsing jobs")).toBeInTheDocument();
+    expect(screen.getAllByText("Vendor website intelligence placeholder").length).toBeGreaterThan(
+      0,
+    );
+
+    renderApp("/admin/parsing-jobs/job-1");
+    expect(screen.getByRole("heading", { name: "Resume parsed data review" })).toBeInTheDocument();
+    expect(screen.getByText("Approve parsed fields")).toBeInTheDocument();
+    expect(screen.getByText("Reject parsed fields")).toBeInTheDocument();
+    expect(screen.getByText("Human approval required before saving")).toBeInTheDocument();
 
     renderApp("/admin/audit-logs");
     expect(screen.getByRole("heading", { name: "Audit logs" })).toBeInTheDocument();

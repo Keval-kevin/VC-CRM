@@ -8,40 +8,71 @@ import { requireTenant } from "../../shared/middleware/tenant.middleware.js";
 import {
   createAccountController,
   createActivityController,
+  createCandidateController,
   createContactController,
+  createInterviewController,
   createLeadController,
   createOpportunityController,
+  createPlacementController,
   createProposalController,
   createProposalVersionController,
+  createRequirementController,
+  createSubmissionController,
+  createVendorController,
   convertLeadController,
   decideProposalController,
   deleteAccountController,
   deleteActivityController,
+  deleteCandidateController,
   deleteContactController,
+  deleteInterviewController,
   deleteLeadController,
   deleteOpportunityController,
+  deletePlacementController,
   deleteProposalController,
+  deleteRequirementController,
+  deleteSubmissionController,
+  deleteVendorController,
   getAccountController,
   getActivityController,
+  getCandidateController,
   getContactController,
+  getInterviewController,
   getLeadController,
   getOpportunityController,
+  getPlacementController,
   getProposalController,
+  getRequirementController,
+  getSubmissionController,
+  getVendorController,
   listAccountsController,
   listActivitiesController,
+  listCandidatesController,
   listContactsController,
+  listInterviewsController,
   listLeadsController,
   listOpportunitiesController,
+  listPlacementsController,
   listOpportunityPipelineController,
   listProposalsController,
+  listRequirementSubmissionsController,
+  listRequirementsController,
+  listSubmissionsController,
+  listVendorsController,
   requestProposalPdfExportController,
   submitProposalController,
   updateAccountController,
   updateActivityController,
+  updateCandidateController,
   updateContactController,
+  updateInterviewController,
   updateLeadController,
   updateOpportunityController,
+  updatePlacementController,
   updateProposalController,
+  updateRequirementController,
+  updateSubmissionController,
+  updateVendorController,
 } from "./crm.controller.js";
 
 export const crmRouter = Router();
@@ -180,6 +211,166 @@ crmRouter.delete(
   "/activities/:activityId",
   requirePermission(permissions.activitiesDelete),
   asyncHandler(deleteActivityController),
+);
+
+crmRouter.get(
+  "/vendors",
+  requirePermission(permissions.vendorsRead),
+  asyncHandler(listVendorsController),
+);
+crmRouter.post(
+  "/vendors",
+  requirePermission(permissions.vendorsCreate),
+  asyncHandler(createVendorController),
+);
+crmRouter.get(
+  "/vendors/:vendorId",
+  requirePermission(permissions.vendorsRead),
+  asyncHandler(getVendorController),
+);
+crmRouter.patch(
+  "/vendors/:vendorId",
+  requirePermission(permissions.vendorsUpdate),
+  asyncHandler(updateVendorController),
+);
+crmRouter.delete(
+  "/vendors/:vendorId",
+  requirePermission(permissions.vendorsDelete),
+  asyncHandler(deleteVendorController),
+);
+
+crmRouter.get(
+  "/candidates",
+  requirePermission(permissions.candidatesRead),
+  asyncHandler(listCandidatesController),
+);
+crmRouter.post(
+  "/candidates",
+  requirePermission(permissions.candidatesCreate),
+  asyncHandler(createCandidateController),
+);
+crmRouter.get(
+  "/candidates/:candidateId",
+  requirePermission(permissions.candidatesRead),
+  asyncHandler(getCandidateController),
+);
+crmRouter.patch(
+  "/candidates/:candidateId",
+  requirePermission(permissions.candidatesUpdate),
+  asyncHandler(updateCandidateController),
+);
+crmRouter.delete(
+  "/candidates/:candidateId",
+  requirePermission(permissions.candidatesDelete),
+  asyncHandler(deleteCandidateController),
+);
+
+crmRouter.get(
+  "/requirements",
+  requirePermission(permissions.requirementsRead),
+  asyncHandler(listRequirementsController),
+);
+crmRouter.post(
+  "/requirements",
+  requirePermission(permissions.requirementsCreate),
+  asyncHandler(createRequirementController),
+);
+crmRouter.get(
+  "/requirements/:requirementId",
+  requirePermission(permissions.requirementsRead),
+  asyncHandler(getRequirementController),
+);
+crmRouter.patch(
+  "/requirements/:requirementId",
+  requirePermission(permissions.requirementsUpdate),
+  asyncHandler(updateRequirementController),
+);
+crmRouter.delete(
+  "/requirements/:requirementId",
+  requirePermission(permissions.requirementsDelete),
+  asyncHandler(deleteRequirementController),
+);
+crmRouter.get(
+  "/requirements/:requirementId/submissions",
+  requirePermission(permissions.submissionsRead),
+  asyncHandler(listRequirementSubmissionsController),
+);
+crmRouter.post(
+  "/requirements/:requirementId/submissions",
+  requirePermission(permissions.submissionsCreate),
+  asyncHandler(createSubmissionController),
+);
+crmRouter.get(
+  "/submissions",
+  requirePermission(permissions.submissionsRead),
+  asyncHandler(listSubmissionsController),
+);
+crmRouter.get(
+  "/submissions/:submissionId",
+  requirePermission(permissions.submissionsRead),
+  asyncHandler(getSubmissionController),
+);
+crmRouter.patch(
+  "/submissions/:submissionId",
+  requirePermission(permissions.submissionsUpdate),
+  asyncHandler(updateSubmissionController),
+);
+crmRouter.delete(
+  "/submissions/:submissionId",
+  requirePermission(permissions.submissionsDelete),
+  asyncHandler(deleteSubmissionController),
+);
+
+crmRouter.get(
+  "/interviews",
+  requirePermission(permissions.interviewsRead),
+  asyncHandler(listInterviewsController),
+);
+crmRouter.post(
+  "/interviews",
+  requirePermission(permissions.interviewsCreate),
+  asyncHandler(createInterviewController),
+);
+crmRouter.get(
+  "/interviews/:interviewId",
+  requirePermission(permissions.interviewsRead),
+  asyncHandler(getInterviewController),
+);
+crmRouter.patch(
+  "/interviews/:interviewId",
+  requirePermission(permissions.interviewsUpdate),
+  asyncHandler(updateInterviewController),
+);
+crmRouter.delete(
+  "/interviews/:interviewId",
+  requirePermission(permissions.interviewsDelete),
+  asyncHandler(deleteInterviewController),
+);
+
+crmRouter.get(
+  "/placements",
+  requirePermission(permissions.placementsRead),
+  asyncHandler(listPlacementsController),
+);
+crmRouter.post(
+  "/placements",
+  requirePermission(permissions.placementsCreate),
+  asyncHandler(createPlacementController),
+);
+crmRouter.get(
+  "/placements/:placementId",
+  requirePermission(permissions.placementsRead),
+  asyncHandler(getPlacementController),
+);
+crmRouter.patch(
+  "/placements/:placementId",
+  requirePermission(permissions.placementsUpdate),
+  asyncHandler(updatePlacementController),
+);
+crmRouter.delete(
+  "/placements/:placementId",
+  requirePermission(permissions.placementsDelete),
+  asyncHandler(deletePlacementController),
 );
 
 crmRouter.get(

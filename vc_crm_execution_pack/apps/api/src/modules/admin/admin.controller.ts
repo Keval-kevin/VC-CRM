@@ -3,27 +3,37 @@ import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/app-error.js";
 import { createSuccessResponse } from "../../shared/http/response.js";
 import {
+  approveParsingJobSchema,
   assignRolesSchema,
+  createParsingJobSchema,
   createTenantSchema,
   inviteUserSchema,
+  parsingJobListQuerySchema,
+  rejectParsingJobSchema,
   updateAiProviderSettingSchema,
   updateTenantSettingsSchema,
   updateTenantStatusSchema,
   updateUserStatusSchema,
 } from "./admin.schema.js";
 import {
+  approveParsingJob,
   assignUserRoles,
   createTenant,
+  createParsingJob,
   getAdminSummary,
+  getParsingJob,
   getTenantSettings,
   inviteUser,
   listAiProviderSettings,
   listAuditLogs,
+  listParsingJobs,
   listPermissions,
   listRoles,
   listTenants,
   listUserSessions,
   listUsers,
+  rejectParsingJob,
+  saveApprovedParsedData,
   updateAiProviderSetting,
   updateTenantSettings,
   updateTenantStatus,
@@ -161,6 +171,78 @@ export async function updateAiProviderSettingController(
     getContext(request),
     getParam(request, "provider"),
     input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listParsingJobsController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = parsingJobListQuerySchema.parse(request.query);
+
+  response
+    .status(200)
+    .json(createSuccessResponse(await listParsingJobs(requireAuth(request), query)));
+}
+
+export async function getParsingJobController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(await getParsingJob(requireAuth(request), getParam(request, "jobId"))),
+    );
+}
+
+export async function createParsingJobController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createParsingJobSchema.parse(request.body);
+  const result = await createParsingJob(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function approveParsingJobController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = approveParsingJobSchema.parse(request.body);
+  const result = await approveParsingJob(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "jobId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function rejectParsingJobController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = rejectParsingJobSchema.parse(request.body);
+  const result = await rejectParsingJob(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "jobId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function saveParsingJobController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await saveApprovedParsedData(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "jobId"),
   );
 
   response.status(200).json(createSuccessResponse(result));

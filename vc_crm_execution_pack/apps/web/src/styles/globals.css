@@ -1,0 +1,75 @@
+@import "./design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --vc-navy: var(--navy);
+  --vc-blue: var(--primary);
+  --vc-light: #dbeafe;
+  --vc-success: var(--success);
+  --vc-warning: var(--warning);
+  --vc-danger: var(--danger);
+  --vc-info: var(--info);
+  --vc-text: var(--text-primary);
+  --vc-muted: var(--text-secondary);
+  --vc-bg: var(--app-bg);
+  --vc-card: var(--surface);
+  --vc-border: var(--border);
+  --radius: var(--radius-control);
+
+  font-family:
+    Inter,
+    Geist,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--text-primary);
+  background: var(--app-bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--app-bg);
+  color: var(--text-primary);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--app-bg);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #bfdbfe;
+  color: var(--navy);
+}
+

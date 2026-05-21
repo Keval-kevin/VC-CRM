@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import bcrypt from "bcrypt";
-import { RoleScope, UserStatus } from "@prisma/client";
+import { AIJobStatus, AIJobType, AIProvider, RoleScope, UserStatus } from "@prisma/client";
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -20,6 +20,38 @@ beforeEach((): void => {
 });
 
 afterAll(async (): Promise<void> => {
+  await prisma.aIUsageLog.deleteMany({
+    where: {
+      parsingJob: {
+        is: {
+          sourceDocumentName: {
+            startsWith: "Admin Test",
+          },
+        },
+      },
+    },
+  });
+  await prisma.documentParsingJob.deleteMany({
+    where: {
+      sourceDocumentName: {
+        startsWith: "Admin Test",
+      },
+    },
+  });
+  await prisma.candidate.deleteMany({
+    where: {
+      email: {
+        endsWith: `@${testEmailDomain}`,
+      },
+    },
+  });
+  await prisma.tenant.deleteMany({
+    where: {
+      slug: {
+        startsWith: "admin-test-other-",
+      },
+    },
+  });
   await prisma.userRole.deleteMany({
     where: {
       user: {
@@ -203,6 +235,156 @@ describe("admin endpoints", (): void => {
     expect(setting).not.toHaveProperty("apiKey");
   });
 
+  it("returns a clear error when the selected AI provider has no key configured", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const tenantId = await getDemoTenantId();
+    await prisma.aIProviderSetting.upsert({
+      where: { tenantId_provider: { tenantId, provider: "gemini" } },
+      create: { tenantId, provider: "gemini", defaultModel: "gemini-1.5-flash", enabled: false },
+      update: {
+        enabled: false,
+        encryptedApiKey: null,
+        apiKeyIv: null,
+        apiKeyTag: null,
+        keyLastFour: null,
+      },
+    });
+    const candidate = await createTestCandidate(tenantId, "no-key");
+
+    const response = await request(app)
+      .post("/api/v1/admin/ai-parsing/jobs")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        provider: AIProvider.GEMINI,
+        jobType: AIJobType.RESUME_PARSE,
+        sourceEntityType: "candidate",
+        sourceEntityId: candidate.id,
+        sourceDocumentName: "Admin Test Resume No Key.pdf",
+      })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: {
+        code: "AI_KEY_MISSING",
+      },
+    });
+  });
+
+  it("keeps parsed resume data out of records until a human approves it", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const tenantId = await getDemoTenantId();
+    const candidate = await createTestCandidate(tenantId, "approval");
+
+    await request(app)
+      .put("/api/v1/admin/ai-settings/openai")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        defaultModel: "gpt-4.1-mini",
+        enabled: true,
+        monthlyBudgetCents: 250000,
+        apiKey: "sk-test-admin-parsing-key",
+      })
+      .expect(200);
+
+    const createResponse = await request(app)
+      .post("/api/v1/admin/ai-parsing/jobs")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        provider: AIProvider.OPENAI,
+        jobType: AIJobType.RESUME_PARSE,
+        sourceEntityType: "candidate",
+        sourceEntityId: candidate.id,
+        sourceDocumentName: "Admin Test Resume Approval.pdf",
+      })
+      .expect(201);
+    const job = getData(createResponse);
+    const jobId = String(job.id);
+
+    expect(job).toMatchObject({
+      status: AIJobStatus.REVIEW_READY,
+      provider: AIProvider.OPENAI,
+      jobType: AIJobType.RESUME_PARSE,
+      estimatedCostCents: 0,
+    });
+
+    await request(app)
+      .post(`/api/v1/admin/ai-parsing/jobs/${jobId}/save`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(400);
+
+    await expectCandidateNotSaved(candidate.id);
+
+    await request(app)
+      .post(`/api/v1/admin/ai-parsing/jobs/${jobId}/approve`)
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        approvedDataJson: {
+          firstName: "Parsed",
+          primarySkills: ["React", "TypeScript"],
+          experienceYears: 6,
+        },
+      })
+      .expect(200);
+
+    const saveResponse = await request(app)
+      .post(`/api/v1/admin/ai-parsing/jobs/${jobId}/save`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    expect(getData(saveResponse)).toMatchObject({
+      status: AIJobStatus.SAVED,
+    });
+
+    const savedCandidate = await prisma.candidate.findUniqueOrThrow({
+      where: { id: candidate.id },
+      select: { parsedResumeJson: true, resumeParsed: true, resumeParseStatus: true },
+    });
+
+    expect(savedCandidate.resumeParsed).toBe(true);
+    expect(savedCandidate.resumeParseStatus).toBe("SAVED");
+    expect(savedCandidate.parsedResumeJson).toMatchObject({
+      firstName: "Parsed",
+    });
+  });
+
+  it("enforces tenant isolation for parsing jobs", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: "Admin Test Other Tenant",
+        slug: `admin-test-other-${randomUUID().replaceAll("-", "").slice(0, 10)}`,
+      },
+      select: { id: true },
+    });
+    const otherCandidate = await createTestCandidate(otherTenant.id, "other-tenant");
+    const otherJob = await prisma.documentParsingJob.create({
+      data: {
+        tenantId: otherTenant.id,
+        provider: AIProvider.OPENAI,
+        jobType: AIJobType.RESUME_PARSE,
+        status: AIJobStatus.REVIEW_READY,
+        sourceEntityType: "candidate",
+        sourceEntityId: otherCandidate.id,
+        sourceDocumentName: "Admin Test Other Tenant Resume.pdf",
+        model: "gpt-4.1-mini",
+      },
+      select: { id: true },
+    });
+
+    const response = await request(app)
+      .get(`/api/v1/admin/ai-parsing/jobs/${otherJob.id}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(404);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+      },
+    });
+  });
+
   it("enforces RBAC for admin endpoints", async (): Promise<void> => {
     const token = await login(await createUserWithoutPermissions());
 
@@ -273,6 +455,38 @@ async function getTenantAdminRoleId(): Promise<string> {
   });
 
   return role.id;
+}
+
+async function getDemoTenantId(): Promise<string> {
+  const tenant = await prisma.tenant.findUniqueOrThrow({
+    where: { slug: "virtual-coders" },
+    select: { id: true },
+  });
+
+  return tenant.id;
+}
+
+async function createTestCandidate(tenantId: string, label: string): Promise<{ id: string }> {
+  return prisma.candidate.create({
+    data: {
+      tenantId,
+      firstName: "Admin Test",
+      lastName: "Candidate",
+      email: `candidate-${label}-${randomUUID()}@${testEmailDomain}`,
+    },
+    select: { id: true },
+  });
+}
+
+async function expectCandidateNotSaved(candidateId: string): Promise<void> {
+  const candidate = await prisma.candidate.findUniqueOrThrow({
+    where: { id: candidateId },
+    select: { parsedResumeJson: true, resumeParsed: true, resumeParseStatus: true },
+  });
+
+  expect(candidate.resumeParsed).toBe(false);
+  expect(candidate.resumeParseStatus).toBe("PENDING");
+  expect(candidate.parsedResumeJson).toBeNull();
 }
 
 async function createUserWithoutPermissions(): Promise<string> {

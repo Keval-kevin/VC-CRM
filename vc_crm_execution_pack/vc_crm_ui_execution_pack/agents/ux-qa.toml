@@ -1,0 +1,57 @@
+version = "1.0"
+project = "VC CRM"
+mode = "ui_refactor_after_modules"
+source_of_truth = [
+  "UI_BUILD_MASTER_PLAN.md",
+  "UI_DESIGN_SYSTEM_RULES.md",
+  "VIBECODING_FINAL_MASTER_GUIDE.md"
+]
+
+[agent]
+name = "ux-qa"
+role = "Checks every screen for usability, consistency, responsiveness, and accessibility."
+
+[responsibilities]
+items = [
+  "Run UI checklist against all major pages",
+  "Find clutter",
+  "Find broken mobile layouts",
+  "Find missing states",
+  "Find inconsistent buttons, cards, tables, and forms",
+  "Check keyboard navigation",
+  "Check accessibility"
+]
+
+[checks]
+pages = [
+  "Dashboard",
+  "Leads",
+  "Accounts",
+  "Contacts",
+  "Opportunities",
+  "Proposals",
+  "Vendors",
+  "Candidates",
+  "Requirements",
+  "Submissions",
+  "Interviews",
+  "Placements",
+  "Reports",
+  "Admin Users",
+  "Roles",
+  "Settings",
+  "Security",
+  "Audit Logs"
+]
+
+[acceptance_criteria]
+items = [
+  "Every page has loading state",
+  "Every page has empty state",
+  "Every page has error state",
+  "Every table has max 8 key columns",
+  "Every create/edit form uses slideover unless complex builder",
+  "Every detail page uses tabs",
+  "Every mobile page is usable at 375px",
+  "No critical accessibility issue"
+]

@@ -5,64 +5,112 @@ import { createSuccessResponse } from "../../shared/http/response.js";
 import {
   accountListQuerySchema,
   activityListQuerySchema,
+  candidateListQuerySchema,
   contactListQuerySchema,
   convertLeadSchema,
   createActivitySchema,
   createAccountSchema,
+  createCandidateSchema,
   createContactSchema,
+  createInterviewSchema,
   createLeadSchema,
   createOpportunitySchema,
+  createPlacementSchema,
   createProposalSchema,
   createProposalVersionSchema,
+  createRequirementSchema,
+  createSubmissionSchema,
+  createVendorSchema,
   decideProposalSchema,
+  interviewListQuerySchema,
   leadListQuerySchema,
   opportunityListQuerySchema,
+  placementListQuerySchema,
   proposalListQuerySchema,
+  requirementListQuerySchema,
+  submissionListQuerySchema,
   submitProposalSchema,
   updateActivitySchema,
   updateAccountSchema,
+  updateCandidateSchema,
   updateContactSchema,
+  updateInterviewSchema,
   updateLeadSchema,
   updateOpportunitySchema,
+  updatePlacementSchema,
   updateProposalSchema,
+  updateRequirementSchema,
+  updateSubmissionSchema,
+  updateVendorSchema,
+  vendorListQuerySchema,
 } from "./crm.schema.js";
 import {
   createCrmActivity,
   convertLeadToOpportunity,
   createAccount,
+  createCandidate,
   createContact,
+  createInterview,
   createLead,
   createOpportunity,
+  createPlacement,
   createProposal,
   createProposalVersion,
+  createRequirement,
+  createVendor,
   decideProposal,
   deleteCrmActivity,
   deleteAccount,
+  deleteCandidate,
   deleteContact,
+  deleteInterview,
   deleteLead,
   deleteOpportunity,
+  deletePlacement,
   deleteProposal,
+  deleteRequirement,
+  deleteSubmission,
+  deleteVendor,
   getCrmActivity,
   getAccount,
+  getCandidate,
   getContact,
+  getInterview,
   getLead,
   getOpportunity,
+  getPlacement,
   getProposal,
+  getRequirement,
+  getSubmission,
+  getVendor,
   listCrmActivities,
   listAccounts,
+  listCandidates,
   listContacts,
+  listInterviews,
   listLeads,
   listOpportunities,
+  listPlacements,
   listOpportunityPipeline,
   listProposals,
+  listRequirements,
+  listSubmissions,
+  listVendors,
   requestProposalPdfExport,
+  submitCandidateToRequirement,
   submitProposal,
   updateCrmActivity,
   updateAccount,
+  updateCandidate,
   updateContact,
+  updateInterview,
   updateLead,
   updateOpportunity,
+  updatePlacement,
   updateProposal,
+  updateRequirement,
+  updateSubmission,
+  updateVendor,
 } from "./crm.service.js";
 
 export async function listLeadsController(request: Request, response: Response): Promise<void> {
@@ -353,6 +401,359 @@ export async function deleteActivityController(
     requireAuth(request),
     getContext(request),
     getParam(request, "activityId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listVendorsController(request: Request, response: Response): Promise<void> {
+  const query = vendorListQuerySchema.parse(request.query);
+  response.status(200).json(createSuccessResponse(await listVendors(requireAuth(request), query)));
+}
+
+export async function getVendorController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(await getVendor(requireAuth(request), getParam(request, "vendorId"))),
+    );
+}
+
+export async function createVendorController(request: Request, response: Response): Promise<void> {
+  const input = createVendorSchema.parse(request.body);
+  const result = await createVendor(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateVendorController(request: Request, response: Response): Promise<void> {
+  const input = updateVendorSchema.parse(request.body);
+  const result = await updateVendor(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "vendorId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteVendorController(request: Request, response: Response): Promise<void> {
+  const result = await deleteVendor(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "vendorId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listCandidatesController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = candidateListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listCandidates(requireAuth(request), query)));
+}
+
+export async function getCandidateController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getCandidate(requireAuth(request), getParam(request, "candidateId")),
+      ),
+    );
+}
+
+export async function createCandidateController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createCandidateSchema.parse(request.body);
+  const result = await createCandidate(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateCandidateController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updateCandidateSchema.parse(request.body);
+  const result = await updateCandidate(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "candidateId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteCandidateController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deleteCandidate(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "candidateId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listRequirementsController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = requirementListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listRequirements(requireAuth(request), query)));
+}
+
+export async function getRequirementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getRequirement(requireAuth(request), getParam(request, "requirementId")),
+      ),
+    );
+}
+
+export async function createRequirementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createRequirementSchema.parse(request.body);
+  const result = await createRequirement(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateRequirementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updateRequirementSchema.parse(request.body);
+  const result = await updateRequirement(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "requirementId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteRequirementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deleteRequirement(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "requirementId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listSubmissionsController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = submissionListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listSubmissions(requireAuth(request), query)));
+}
+
+export async function listRequirementSubmissionsController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = {
+    ...submissionListQuerySchema.parse(request.query),
+    requirementId: getParam(request, "requirementId"),
+  };
+  response
+    .status(200)
+    .json(createSuccessResponse(await listSubmissions(requireAuth(request), query)));
+}
+
+export async function getSubmissionController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getSubmission(requireAuth(request), getParam(request, "submissionId")),
+      ),
+    );
+}
+
+export async function createSubmissionController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createSubmissionSchema.parse(request.body);
+  const result = await submitCandidateToRequirement(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "requirementId"),
+    input,
+  );
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateSubmissionController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updateSubmissionSchema.parse(request.body);
+  const result = await updateSubmission(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "submissionId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteSubmissionController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deleteSubmission(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "submissionId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listInterviewsController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = interviewListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listInterviews(requireAuth(request), query)));
+}
+
+export async function getInterviewController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getInterview(requireAuth(request), getParam(request, "interviewId")),
+      ),
+    );
+}
+
+export async function createInterviewController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createInterviewSchema.parse(request.body);
+  const result = await createInterview(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateInterviewController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updateInterviewSchema.parse(request.body);
+  const result = await updateInterview(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "interviewId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteInterviewController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deleteInterview(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "interviewId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function listPlacementsController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const query = placementListQuerySchema.parse(request.query);
+  response
+    .status(200)
+    .json(createSuccessResponse(await listPlacements(requireAuth(request), query)));
+}
+
+export async function getPlacementController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(
+      createSuccessResponse(
+        await getPlacement(requireAuth(request), getParam(request, "placementId")),
+      ),
+    );
+}
+
+export async function createPlacementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = createPlacementSchema.parse(request.body);
+  const result = await createPlacement(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updatePlacementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const input = updatePlacementSchema.parse(request.body);
+  const result = await updatePlacement(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "placementId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deletePlacementController(
+  request: Request,
+  response: Response,
+): Promise<void> {
+  const result = await deletePlacement(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "placementId"),
   );
 
   response.status(200).json(createSuccessResponse(result));
