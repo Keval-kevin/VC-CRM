@@ -1,16 +1,27 @@
-import { FileCheck2, ShieldAlert, Tags, Users } from "lucide-react";
-import { useMemo } from "react";
+import { Users } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { EmptyState } from "../../components/shared/EmptyState";
-import { PageHeader } from "../../components/shared/PageHeader";
+import {
+  DetailField,
+  DetailSection,
+  DetailSummaryGrid,
+  EmptyState,
+  SectionTabs,
+  StatusBadge,
+} from "../../components/shared";
+import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
+import { VendorFormPanel } from "./VendorFormPanel";
 import { vendors } from "./vendorData";
+
+const canViewAuditLog = true;
 
 export function VendorDetailPage(): JSX.Element {
   const { vendorId } = useParams();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const vendor = useMemo(
     () =>
       vendors.find((candidate) => candidate.id === vendorId) ?? {
@@ -32,115 +43,101 @@ export function VendorDetailPage(): JSX.Element {
       },
     [vendorId],
   );
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "documents", label: "Documents" },
+    { id: "scorecard", label: "Scorecard" },
+    { id: "related", label: "Related" },
+    ...(canViewAuditLog ? [{ id: "audit", label: "Audit Log" }] : []),
+  ];
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Partners / Vendor detail"
-        title={vendor.name}
-        subtitle={`${vendor.location} · ${vendor.tier} tier · ${vendor.ownership} ownership tag.`}
-        action={<Button type="button">Edit vendor</Button>}
-      />
-      <section className="grid gap-3 md:grid-cols-5">
-        {[
-          ["Status", vendor.status],
-          ["Tier", vendor.tier],
-          ["Risk", vendor.riskStatus],
-          ["Score", String(vendor.score)],
-          ["Portal", vendor.portal],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-sm font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileCheck2 className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Document/status panel</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <StatusRow label="NDA" value={vendor.ndaStatus} />
-            <StatusRow label="MSA" value={vendor.msaStatus} />
-            <StatusRow label="Rate card" value={vendor.rateCard} />
-            <StatusRow label="Decision maker" value={vendor.decisionMaker} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Tags className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Expertise tags</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {vendor.categories.map((category) => (
-                <Badge key={category}>{category}</Badge>
-              ))}
-              {vendor.expertise.map((skill) => (
-                <Badge key={skill} variant="muted">
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Portal-ready schema stores invite email, slug, enabled flag, and last login timestamp.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Scorecard tab</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: "Delivery", value: "86" },
-              { label: "Quality", value: "90" },
-              { label: "Responsiveness", value: "76" },
-              { label: "Compliance", value: "92" },
-            ].map((score) => (
-              <StatusRow key={score.label} label={score.label} value={`${score.value}/100`} />
+    <DetailPageTemplate
+      eyebrow="Partners / Vendor detail"
+      title={vendor.name}
+      description={`${vendor.location} - ${vendor.tier} tier - ${vendor.ownership} ownership tag.`}
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          Edit vendor
+        </Button>
+      }
+      kpiSection={
+        <DetailSummaryGrid
+          className="xl:grid-cols-5"
+          items={[
+            { label: "Status", value: vendor.status },
+            { label: "Tier", value: vendor.tier },
+            {
+              label: "Risk",
+              value: (
+                <StatusBadge tone={vendor.riskStatus === "Warning" ? "warning" : "success"}>
+                  {vendor.riskStatus}
+                </StatusBadge>
+              ),
+            },
+            { label: "Score", value: String(vendor.score) },
+            { label: "Portal", value: vendor.portal },
+          ]}
+        />
+      }
+      toolbar={
+        <div className="sticky top-16 z-10 rounded-card border border-border bg-card shadow-card">
+          <SectionTabs tabs={tabs} activeTabId={activeTab} onChange={setActiveTab} />
+        </div>
+      }
+    >
+      {activeTab === "overview" && (
+        <DetailSection title="Expertise tags">
+          <div className="flex flex-wrap gap-2">
+            {vendor.categories.map((category) => (
+              <Badge key={category}>{category}</Badge>
             ))}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Candidates tab placeholder</h2>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <EmptyState
-              icon={Users}
-              title="No submitted candidates yet"
-              description="Candidate submissions will connect here when delivery modules are implemented."
-              actionLabel="View candidates"
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function StatusRow(props: { label: string; value: string }): JSX.Element {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-      <span className="text-sm text-muted-foreground">{props.label}</span>
-      <span className="text-sm font-semibold text-vc-navy">{props.value}</span>
-    </div>
+            {vendor.expertise.map((skill) => (
+              <Badge key={skill} variant="muted">
+                {skill}
+              </Badge>
+            ))}
+          </div>
+          <DetailField label="Decision maker" value={vendor.decisionMaker} />
+          <DetailField
+            label="Portal schema"
+            value="Invite email, slug, enabled flag, and last login timestamp"
+          />
+        </DetailSection>
+      )}
+      {activeTab === "documents" && (
+        <DetailSection title="Document/status panel">
+          <DetailField label="NDA" value={vendor.ndaStatus} />
+          <DetailField label="MSA" value={vendor.msaStatus} />
+          <DetailField label="Rate card" value={vendor.rateCard} />
+        </DetailSection>
+      )}
+      {activeTab === "scorecard" && (
+        <DetailSection title="Scorecard tab">
+          {[
+            { label: "Delivery", value: "86/100" },
+            { label: "Quality", value: "90/100" },
+            { label: "Responsiveness", value: "76/100" },
+            { label: "Compliance", value: "92/100" },
+          ].map((score) => (
+            <DetailField key={score.label} label={score.label} value={score.value} />
+          ))}
+        </DetailSection>
+      )}
+      {activeTab === "related" && (
+        <EmptyState
+          icon={Users}
+          title="No submitted candidates yet"
+          description="Candidate submissions will connect here when delivery modules are implemented."
+          actionLabel="View candidates"
+        />
+      )}
+      {activeTab === "audit" && canViewAuditLog && (
+        <DetailSection title="Audit Log">
+          <DetailField label="Latest audit event" value="Vendor score reviewed" />
+        </DetailSection>
+      )}
+      <VendorFormPanel isOpen={isPanelOpen} mode="edit" onClose={() => setIsPanelOpen(false)} />
+    </DetailPageTemplate>
   );
 }

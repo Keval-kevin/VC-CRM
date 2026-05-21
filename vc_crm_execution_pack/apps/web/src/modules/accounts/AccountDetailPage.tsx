@@ -1,19 +1,26 @@
-import { Activity, Edit, Users } from "lucide-react";
+import { Edit, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { DataTableShell } from "../../components/shared/DataTableShell";
-import { EmptyState } from "../../components/shared/EmptyState";
-import { PageHeader } from "../../components/shared/PageHeader";
-import { Badge } from "../../components/ui/badge";
+import {
+  DataTable,
+  DetailField,
+  DetailSection,
+  DetailSummaryGrid,
+  EmptyState,
+  SectionTabs,
+} from "../../components/shared";
+import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { AccountFormPanel } from "./AccountFormPanel";
 import { accounts, contacts } from "./accountData";
+
+const canViewAuditLog = true;
 
 export function AccountDetailPage(): JSX.Element {
   const { accountId } = useParams();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const account = useMemo(
     () =>
       accounts.find((candidate) => candidate.id === accountId) ?? {
@@ -29,70 +36,85 @@ export function AccountDetailPage(): JSX.Element {
     [accountId],
   );
   const accountContacts = contacts.filter((contact) => contact.accountId === account.id);
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "related", label: "Related" },
+    { id: "activities", label: "Activities" },
+    ...(canViewAuditLog ? [{ id: "audit", label: "Audit Log" }] : []),
+  ];
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="CRM / Account detail"
-        title={account.name}
-        subtitle={`${account.industry} account in ${account.city}. Detail page shows summary, contacts, and activity timeline placeholders.`}
-        action={
-          <Button type="button" onClick={() => setIsPanelOpen(true)}>
-            <Edit className="h-4 w-4" />
-            Edit account
-          </Button>
-        }
-      />
-      <section className="grid gap-3 md:grid-cols-4">
-        {[
-          ["Status", account.status],
-          ["Domain", account.domain],
-          ["Owner", account.owner],
-          ["Country", "India"],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-sm font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <DataTableShell
-        title="Contacts sub-table"
-        columns={[
-          { key: "name", label: "Contact" },
-          { key: "title", label: "Title" },
-          { key: "email", label: "Email" },
-          { key: "decisionMaker", label: "Decision maker" },
-        ]}
-        rows={accountContacts}
-      />
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-vc-blue" />
-            <h2 className="text-base font-semibold text-vc-navy">Activity timeline</h2>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+    <DetailPageTemplate
+      eyebrow="Sales / Account detail"
+      title={account.name}
+      description={`${account.industry} account in ${account.city}.`}
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          <Edit className="h-4 w-4" />
+          Edit account
+        </Button>
+      }
+      kpiSection={
+        <DetailSummaryGrid
+          items={[
+            { label: "Status", value: account.status },
+            { label: "Domain", value: account.domain },
+            { label: "Owner", value: account.owner },
+            { label: "Country", value: "India" },
+          ]}
+        />
+      }
+      toolbar={
+        <div className="sticky top-16 z-10 rounded-card border border-border bg-card shadow-card">
+          <SectionTabs tabs={tabs} activeTabId={activeTab} onChange={setActiveTab} />
+        </div>
+      }
+    >
+      {activeTab === "overview" && (
+        <DetailSection title="Account profile">
+          <DetailField label="Industry" value={account.industry} />
+          <DetailField label="Location" value={account.city} />
+          <DetailField label="Last updated" value={account.updated} />
+        </DetailSection>
+      )}
+      {activeTab === "related" && (
+        <DataTable
+          title="Contacts sub-table"
+          rows={accountContacts}
+          getRowId={(contact) => contact.id}
+          columns={[
+            { id: "name", header: "Contact", cell: (contact) => contact.name },
+            { id: "title", header: "Title", cell: (contact) => contact.title },
+            { id: "email", header: "Email", cell: (contact) => contact.email },
+            {
+              id: "decisionMaker",
+              header: "Decision maker",
+              cell: (contact) => contact.decisionMaker,
+            },
+          ]}
+          emptyState={
+            <EmptyState
+              icon={Users}
+              title="No related contacts yet"
+              description="Add contacts to build account relationships."
+              actionLabel="Add contact"
+            />
+          }
+        />
+      )}
+      {activeTab === "activities" && (
+        <DetailSection title="Activity timeline">
           {["Account created", "Primary contact added", "Account updated"].map((item) => (
-            <div key={item} className="rounded-lg border border-border p-3">
-              <Badge>{item}</Badge>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Timeline relation is ready for real activity data.
-              </p>
-            </div>
+            <DetailField key={item} label={item} value="Ready for activity data" />
           ))}
-        </CardContent>
-      </Card>
-      <EmptyState
-        icon={Users}
-        title="No related opportunities yet"
-        description="Related records will appear here when future CRM modules are added."
-        actionLabel="Add contact"
-      />
+        </DetailSection>
+      )}
+      {activeTab === "audit" && canViewAuditLog && (
+        <DetailSection title="Audit Log">
+          <DetailField label="Latest audit event" value="Account updated" />
+        </DetailSection>
+      )}
       <AccountFormPanel isOpen={isPanelOpen} mode="edit" onClose={() => setIsPanelOpen(false)} />
-    </div>
+    </DetailPageTemplate>
   );
 }

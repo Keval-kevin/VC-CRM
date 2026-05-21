@@ -22,6 +22,7 @@ import { accounts, contacts, type AccountListItem } from "./accountData";
 
 export function AccountListPage(): JSX.Element {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const activeAccounts = accounts.filter((account) => account.status === "Active").length;
   const pipelineValue = opportunities.reduce((sum, opportunity) => sum + opportunity.valueCents, 0);
 
@@ -31,7 +32,13 @@ export function AccountListPage(): JSX.Element {
       title="Accounts"
       description="Company records with owner context, active relationships, and pipeline visibility."
       primaryAction={
-        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           New account
         </Button>
@@ -72,7 +79,10 @@ export function AccountListPage(): JSX.Element {
           title="No accounts match this view"
           description="Clear filters or create a new account."
           actionLabel="Create account"
-          onAction={() => setIsPanelOpen(true)}
+          onAction={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
         />
       }
     >
@@ -93,7 +103,13 @@ export function AccountListPage(): JSX.Element {
                   </Link>
                   <p className="truncate text-xs text-muted-foreground">{account.domain}</p>
                 </div>
-                <RowActionMenu detailPath={`/accounts/${account.id}`} />
+                <RowActionMenu
+                  detailPath={`/accounts/${account.id}`}
+                  onEdit={() => {
+                    setFormMode("edit");
+                    setIsPanelOpen(true);
+                  }}
+                />
               </div>
             ),
           },
@@ -121,12 +137,22 @@ export function AccountListPage(): JSX.Element {
         </Link>
         <StatusBadge tone="success">Audit logs captured</StatusBadge>
       </SurfaceCard>
-      <AccountFormPanel isOpen={isPanelOpen} mode="create" onClose={() => setIsPanelOpen(false)} />
+      <AccountFormPanel
+        isOpen={isPanelOpen}
+        mode={formMode}
+        onClose={() => setIsPanelOpen(false)}
+      />
     </ListPageTemplate>
   );
 }
 
-function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+function RowActionMenu({
+  detailPath,
+  onEdit,
+}: {
+  detailPath: string;
+  onEdit: () => void;
+}): JSX.Element {
   return (
     <details className="relative shrink-0">
       <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
@@ -139,6 +165,7 @@ function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
         <button
           className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
           type="button"
+          onClick={onEdit}
         >
           Edit
         </button>

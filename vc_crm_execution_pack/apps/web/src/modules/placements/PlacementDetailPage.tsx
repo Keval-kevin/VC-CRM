@@ -1,16 +1,25 @@
-import { BadgeIndianRupee, CalendarDays, ShieldCheck } from "lucide-react";
-import { useMemo } from "react";
+import { BadgeIndianRupee, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { PageHeader } from "../../components/shared/PageHeader";
+import {
+  DetailField,
+  DetailSection,
+  DetailSummaryGrid,
+  SectionTabs,
+} from "../../components/shared";
+import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
+import { PlacementFormPanel } from "./PlacementFormPanel";
 import { placements } from "./placementData";
 
 const canViewFinanceFields = true;
+const canViewAuditLog = true;
 
 export function PlacementDetailPage(): JSX.Element {
   const { placementId } = useParams();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const placement = useMemo(
     () =>
       placements.find((item) => item.id === placementId) ?? {
@@ -27,76 +36,80 @@ export function PlacementDetailPage(): JSX.Element {
       },
     [placementId],
   );
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    ...(canViewFinanceFields ? [{ id: "financials", label: "Financials" }] : []),
+    { id: "related", label: "Related" },
+    ...(canViewAuditLog ? [{ id: "audit", label: "Audit Log" }] : []),
+  ];
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Delivery / Placement detail"
-        title={placement.candidate}
-        subtitle={`${placement.requirement} - ${placement.vendor}`}
-        action={<Button type="button">Edit placement</Button>}
-      />
-      <section className="grid gap-3 md:grid-cols-4">
-        {[
-          ["Billing status", placement.billingStatus],
-          ["Joining date", placement.joiningDate],
-          ["Replacement", placement.replacementPeriod],
-          ["Vendor", placement.vendor],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-sm font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Placement timeline</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <StatusRow label="Selected candidate" value={placement.candidate} />
-            <StatusRow label="Joining date" value={placement.joiningDate} />
-            <StatusRow label="Replacement period" value={placement.replacementPeriod} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <BadgeIndianRupee className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Authorized finance fields</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {canViewFinanceFields ? (
-              <>
-                <StatusRow label="Client billing rate" value={placement.clientBillingRate} />
-                <StatusRow label="Vendor cost" value={placement.vendorCost} />
-                <StatusRow label="Margin calculation" value={placement.margin} />
-              </>
-            ) : (
-              <div className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                <ShieldCheck className="h-4 w-4 text-vc-blue" />
-                Finance fields are restricted to authorized roles.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function StatusRow(props: { label: string; value: string }): JSX.Element {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-      <span className="text-sm text-muted-foreground">{props.label}</span>
-      <span className="text-sm font-semibold text-vc-navy">{props.value}</span>
-    </div>
+    <DetailPageTemplate
+      eyebrow="Delivery / Placement detail"
+      title={placement.candidate}
+      description={`${placement.requirement} - ${placement.vendor}`}
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          Edit placement
+        </Button>
+      }
+      kpiSection={
+        <DetailSummaryGrid
+          items={[
+            { label: "Billing status", value: placement.billingStatus },
+            { label: "Joining date", value: placement.joiningDate },
+            { label: "Replacement", value: placement.replacementPeriod },
+            { label: "Vendor", value: placement.vendor },
+          ]}
+        />
+      }
+      toolbar={
+        <div className="sticky top-16 z-10 rounded-card border border-border bg-card shadow-card">
+          <SectionTabs tabs={tabs} activeTabId={activeTab} onChange={setActiveTab} />
+        </div>
+      }
+    >
+      {activeTab === "overview" && (
+        <DetailSection title="Placement timeline">
+          <DetailField label="Selected candidate" value={placement.candidate} />
+          <DetailField label="Joining date" value={placement.joiningDate} />
+          <DetailField label="Replacement period" value={placement.replacementPeriod} />
+        </DetailSection>
+      )}
+      {activeTab === "financials" && canViewFinanceFields && (
+        <DetailSection title="Authorized finance fields">
+          <DetailField label="Client billing rate" value={placement.clientBillingRate} />
+          <DetailField label="Vendor cost" value={placement.vendorCost} />
+          <DetailField label="Margin calculation" value={placement.margin} />
+        </DetailSection>
+      )}
+      {activeTab === "related" && (
+        <DetailSection title="Related">
+          <DetailField label="Requirement" value={placement.requirement} />
+          <DetailField label="Vendor" value={placement.vendor} />
+        </DetailSection>
+      )}
+      {activeTab === "audit" && canViewAuditLog && (
+        <DetailSection title="Audit Log">
+          <DetailField
+            label="Finance visibility"
+            value={
+              canViewFinanceFields ? (
+                <span className="inline-flex items-center gap-2">
+                  <BadgeIndianRupee className="h-4 w-4 text-vc-blue" />
+                  Authorized
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-vc-blue" />
+                  Restricted
+                </span>
+              )
+            }
+          />
+        </DetailSection>
+      )}
+      <PlacementFormPanel isOpen={isPanelOpen} mode="edit" onClose={() => setIsPanelOpen(false)} />
+    </DetailPageTemplate>
   );
 }

@@ -21,6 +21,7 @@ import { leads, type LeadListItem } from "./leadData";
 
 export function LeadListPage(): JSX.Element {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const qualifiedCount = leads.filter((lead) => lead.status === "QUALIFIED").length;
 
   return (
@@ -29,7 +30,13 @@ export function LeadListPage(): JSX.Element {
       title="Leads"
       description="Prioritize lead follow-ups, qualification, owner assignment, and conversion readiness."
       primaryAction={
-        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           New lead
         </Button>
@@ -75,7 +82,10 @@ export function LeadListPage(): JSX.Element {
           title="No leads match this view"
           description="Clear filters, import a CSV, or create a new lead manually."
           actionLabel="Create lead"
-          onAction={() => setIsPanelOpen(true)}
+          onAction={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
         />
       }
     >
@@ -108,7 +118,13 @@ export function LeadListPage(): JSX.Element {
                   </Link>
                   <p className="truncate text-xs text-muted-foreground">{lead.email}</p>
                 </div>
-                <RowActionMenu detailPath={`/leads/${lead.id}`} />
+                <RowActionMenu
+                  detailPath={`/leads/${lead.id}`}
+                  onEdit={() => {
+                    setFormMode("edit");
+                    setIsPanelOpen(true);
+                  }}
+                />
               </div>
             ),
           },
@@ -127,12 +143,18 @@ export function LeadListPage(): JSX.Element {
         rows={leads}
         getRowId={(lead) => lead.id}
       />
-      <LeadFormPanel isOpen={isPanelOpen} mode="create" onClose={() => setIsPanelOpen(false)} />
+      <LeadFormPanel isOpen={isPanelOpen} mode={formMode} onClose={() => setIsPanelOpen(false)} />
     </ListPageTemplate>
   );
 }
 
-function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+function RowActionMenu({
+  detailPath,
+  onEdit,
+}: {
+  detailPath: string;
+  onEdit: () => void;
+}): JSX.Element {
   return (
     <details className="relative shrink-0">
       <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
@@ -145,6 +167,7 @@ function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
         <button
           className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
           type="button"
+          onClick={onEdit}
         >
           Edit
         </button>

@@ -1,16 +1,26 @@
-import { FileSearch, ShieldCheck, Tags, UploadCloud } from "lucide-react";
-import { useMemo } from "react";
+import { FileSearch, Tags, UploadCloud } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { EmptyState } from "../../components/shared/EmptyState";
-import { PageHeader } from "../../components/shared/PageHeader";
+import {
+  DetailField,
+  DetailSection,
+  DetailSummaryGrid,
+  EmptyState,
+  SectionTabs,
+} from "../../components/shared";
+import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
+import { CandidateFormPanel } from "./CandidateFormPanel";
 import { candidates } from "./candidateData";
+
+const canViewAuditLog = true;
 
 export function CandidateDetailPage(): JSX.Element {
   const { candidateId } = useParams();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const candidate = useMemo(
     () =>
       candidates.find((item) => item.id === candidateId) ?? {
@@ -35,112 +45,99 @@ export function CandidateDetailPage(): JSX.Element {
       },
     [candidateId],
   );
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "documents", label: "Documents" },
+    { id: "submissions", label: "Submissions" },
+    { id: "related", label: "Consent tracking" },
+    ...(canViewAuditLog ? [{ id: "audit", label: "Audit Log" }] : []),
+  ];
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Delivery / Candidate detail"
-        title={candidate.name}
-        subtitle={`${candidate.location} - ${candidate.experience} - ${candidate.vendor}`}
-        action={<Button type="button">Edit candidate</Button>}
-      />
-      <section className="grid gap-3 md:grid-cols-5">
-        {[
-          ["Status", candidate.status],
-          ["Availability", candidate.availability],
-          ["Notice", candidate.noticePeriod],
-          ["Consent", candidate.consent],
-          ["Blacklist", candidate.blacklist],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-sm font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Tags className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Skill filters</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {candidate.primarySkills.map((skill) => (
-                <Badge key={skill}>{skill}</Badge>
-              ))}
-              {candidate.secondarySkills.map((skill) => (
-                <Badge key={skill} variant="muted">
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-            <StatusRow label="Current CTC" value={candidate.currentCtc} />
-            <StatusRow label="Expected CTC" value={candidate.expectedCtc} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <UploadCloud className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Resume upload</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <StatusRow label="File" value={candidate.resume} />
-            <StatusRow label="Parsing" value={candidate.parsingStatus} />
+    <DetailPageTemplate
+      eyebrow="Delivery / Candidate detail"
+      title={candidate.name}
+      description={`${candidate.location} - ${candidate.experience} - ${candidate.vendor}`}
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          Edit candidate
+        </Button>
+      }
+      kpiSection={
+        <DetailSummaryGrid
+          className="xl:grid-cols-5"
+          items={[
+            { label: "Status", value: candidate.status },
+            { label: "Availability", value: candidate.availability },
+            { label: "Notice", value: candidate.noticePeriod },
+            { label: "Consent", value: candidate.consent },
+            { label: "Blacklist", value: candidate.blacklist },
+          ]}
+        />
+      }
+      toolbar={
+        <div className="sticky top-16 z-10 rounded-card border border-border bg-card shadow-card">
+          <SectionTabs tabs={tabs} activeTabId={activeTab} onChange={setActiveTab} />
+        </div>
+      }
+    >
+      {activeTab === "overview" && (
+        <DetailSection title="Skill filters">
+          <div className="flex flex-wrap gap-2">
+            {candidate.primarySkills.map((skill) => (
+              <Badge key={skill}>{skill}</Badge>
+            ))}
+            {candidate.secondarySkills.map((skill) => (
+              <Badge key={skill} variant="muted">
+                {skill}
+              </Badge>
+            ))}
+          </div>
+          <DetailField label="Current CTC" value={candidate.currentCtc} />
+          <DetailField label="Expected CTC" value={candidate.expectedCtc} />
+        </DetailSection>
+      )}
+      {activeTab === "documents" && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <DetailSection title="Resume upload">
+            <DetailField label="File" value={candidate.resume} />
+            <DetailField label="Parsing" value={candidate.parsingStatus} />
             <Button type="button" variant="secondary">
+              <UploadCloud className="h-4 w-4" />
               Replace resume
             </Button>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileSearch className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">
-                Parsed data review placeholder
-              </h2>
-            </div>
-          </CardHeader>
-          <CardContent>
+          </DetailSection>
+          <DetailSection title="Parsed data review placeholder">
             <EmptyState
               icon={FileSearch}
               title="Parsed resume data is ready for review"
               description="The placeholder captures skills, experience, contact details, CTC, notice period, and location before AI parsing is wired."
               actionLabel="Review parsed data"
             />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Consent tracking</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <StatusRow label="Consent status" value={candidate.consent} />
-            <StatusRow label="Vendor link" value={candidate.vendor} />
-            <StatusRow label="Duplicate detection" value="Email and phone checks enabled" />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function StatusRow(props: { label: string; value: string }): JSX.Element {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-      <span className="text-sm text-muted-foreground">{props.label}</span>
-      <span className="text-sm font-semibold text-vc-navy">{props.value}</span>
-    </div>
+          </DetailSection>
+        </div>
+      )}
+      {activeTab === "submissions" && (
+        <EmptyState
+          icon={Tags}
+          title="No submissions yet"
+          description="Submission history will appear once this candidate is sent to clients."
+          actionLabel="Submit candidate"
+        />
+      )}
+      {activeTab === "related" && (
+        <DetailSection title="Consent tracking">
+          <DetailField label="Consent status" value={candidate.consent} />
+          <DetailField label="Vendor link" value={candidate.vendor} />
+          <DetailField label="Duplicate detection" value="Email and phone checks enabled" />
+        </DetailSection>
+      )}
+      {activeTab === "audit" && canViewAuditLog && (
+        <DetailSection title="Audit Log">
+          <DetailField label="Latest audit event" value="Candidate reviewed" />
+        </DetailSection>
+      )}
+      <CandidateFormPanel isOpen={isPanelOpen} mode="edit" onClose={() => setIsPanelOpen(false)} />
+    </DetailPageTemplate>
   );
 }

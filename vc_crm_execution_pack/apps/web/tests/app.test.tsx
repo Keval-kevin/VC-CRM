@@ -46,7 +46,9 @@ describe("App", (): void => {
     renderApp("/proposals/prop-1");
     expect(screen.getByRole("heading", { name: "Acme React Squad Proposal" })).toBeInTheDocument();
     expect(screen.getByText("Proposal editor shell")).toBeInTheDocument();
-    expect(screen.getByText("Approval workflow")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Approval workflow" }));
+    expect(screen.getByRole("heading", { name: "Approval workflow" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Documents" }));
     expect(screen.getByText("Version history")).toBeInTheDocument();
 
     renderApp("/activities");
@@ -65,10 +67,13 @@ describe("App", (): void => {
 
     renderApp("/vendors/vendor-1");
     expect(screen.getByRole("heading", { name: "TalentBridge Solutions" })).toBeInTheDocument();
-    expect(screen.getByText("Document/status panel")).toBeInTheDocument();
     expect(screen.getByText("Expertise tags")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Documents" }));
+    expect(screen.getByText("Document/status panel")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Scorecard" }));
     expect(screen.getByText("Scorecard tab")).toBeInTheDocument();
-    expect(screen.getByText("Candidates tab placeholder")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Related" }));
+    expect(screen.getByText("No submitted candidates yet")).toBeInTheDocument();
   });
 
   it("renders candidate list and detail layouts", (): void => {
@@ -82,9 +87,11 @@ describe("App", (): void => {
     renderApp("/candidates/candidate-1");
     expect(screen.getByRole("heading", { name: "Isha Mehta" })).toBeInTheDocument();
     expect(screen.getByText("Skill filters")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Documents" }));
     expect(screen.getByText("Resume upload")).toBeInTheDocument();
     expect(screen.getByText("Parsed data review placeholder")).toBeInTheDocument();
-    expect(screen.getByText("Consent tracking")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Consent tracking" }));
+    expect(screen.getByRole("heading", { name: "Consent tracking" })).toBeInTheDocument();
   });
 
   it("renders requirement and submission layouts", (): void => {
@@ -97,8 +104,10 @@ describe("App", (): void => {
     renderApp("/requirements/req-1");
     expect(screen.getByRole("heading", { name: "Senior React Engineer" })).toBeInTheDocument();
     expect(screen.getByText("Requirement profile")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Submissions" }));
     expect(screen.getByText("Submission tracker")).toBeInTheDocument();
-    expect(screen.getByText("Candidate matching panel placeholder")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Interviews" }));
+    expect(screen.getByText("Matching candidates will appear here")).toBeInTheDocument();
 
     renderApp("/submissions");
     expect(screen.getByRole("heading", { name: "Submissions" })).toBeInTheDocument();
@@ -122,6 +131,7 @@ describe("App", (): void => {
     renderApp("/placements/placement-1");
     expect(screen.getAllByRole("heading", { name: "Isha Mehta" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Placement timeline")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Financials" }));
     expect(screen.getByText("Authorized finance fields")).toBeInTheDocument();
     expect(screen.getByText("Margin calculation")).toBeInTheDocument();
   });
@@ -139,6 +149,7 @@ describe("App", (): void => {
       screen.getByRole("heading", { name: "Acme Cloud - Dedicated React squad" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Stage movement").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Activities" }));
     expect(screen.getByText("Activity feed placeholder")).toBeInTheDocument();
   });
 
@@ -151,7 +162,9 @@ describe("App", (): void => {
 
     renderApp("/accounts/acct-1");
     expect(screen.getByRole("heading", { name: "Acme Cloud Systems" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Related" }));
     expect(screen.getByText("Contacts sub-table")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Activities" }));
     expect(screen.getByText("Activity timeline")).toBeInTheDocument();
   });
 
@@ -165,8 +178,9 @@ describe("App", (): void => {
 
     renderApp("/leads/lead-1");
     expect(screen.getByRole("heading", { name: "Avni Shah" })).toBeInTheDocument();
-    expect(screen.getByText("Lead activity timeline")).toBeInTheDocument();
     expect(screen.getByText("Import and disposition")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Activities" }));
+    expect(screen.getByText("Lead activity timeline")).toBeInTheDocument();
   });
 
   it("renders contacts list layout", (): void => {

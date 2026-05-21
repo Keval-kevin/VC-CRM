@@ -1,4 +1,5 @@
 import { CalendarClock, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { DataTableShell } from "../../components/shared/DataTableShell";
 import { EmptyState } from "../../components/shared/EmptyState";
@@ -7,9 +8,12 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { InterviewFormPanel } from "./InterviewFormPanel";
 import { interviews } from "./interviewData";
 
 export function InterviewListPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -17,7 +21,7 @@ export function InterviewListPage(): JSX.Element {
         title="Interviews"
         subtitle="Schedule rounds, interviewers, feedback, and outcomes for submitted candidates."
         action={
-          <Button type="button">
+          <Button type="button" onClick={() => setIsPanelOpen(true)}>
             <Plus className="h-4 w-4" />
             Schedule interview
           </Button>
@@ -89,6 +93,12 @@ export function InterviewListPage(): JSX.Element {
         title="No interviews match this view"
         description="Schedule interviews from submitted candidates and capture panel feedback."
         actionLabel="Schedule interview"
+        onAction={() => setIsPanelOpen(true)}
+      />
+      <InterviewFormPanel
+        isOpen={isPanelOpen}
+        mode="create"
+        onClose={() => setIsPanelOpen(false)}
       />
     </div>
   );

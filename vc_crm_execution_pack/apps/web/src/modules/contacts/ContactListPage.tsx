@@ -20,6 +20,7 @@ import { ContactFormPanel } from "./ContactFormPanel";
 
 export function ContactListPage(): JSX.Element {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const decisionMakers = contacts.filter((contact) => contact.decisionMaker === "Yes").length;
 
   return (
@@ -28,7 +29,13 @@ export function ContactListPage(): JSX.Element {
       title="Contacts"
       description="Decision makers and account contacts with email, role, status, and relationship context."
       primaryAction={
-        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           New contact
         </Button>
@@ -72,7 +79,10 @@ export function ContactListPage(): JSX.Element {
           title="No contacts match this view"
           description="Clear filters or create a new contact linked to an account."
           actionLabel="Create contact"
-          onAction={() => setIsPanelOpen(true)}
+          onAction={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
         />
       }
     >
@@ -102,7 +112,18 @@ export function ContactListPage(): JSX.Element {
             cell: (contact) => contact.decisionMaker,
           },
           { id: "lastActivity", header: "Last Activity", cell: () => "Sample activity" },
-          { id: "actions", header: "Actions", cell: () => <RowActionMenu /> },
+          {
+            id: "actions",
+            header: "Actions",
+            cell: () => (
+              <RowActionMenu
+                onEdit={() => {
+                  setFormMode("edit");
+                  setIsPanelOpen(true);
+                }}
+              />
+            ),
+          },
         ]}
         rows={contacts}
         getRowId={(contact) => contact.id}
@@ -113,7 +134,11 @@ export function ContactListPage(): JSX.Element {
           Contact detail pages will show calls, notes, proposal sends, and account changes here.
         </p>
       </SurfaceCard>
-      <ContactFormPanel isOpen={isPanelOpen} mode="create" onClose={() => setIsPanelOpen(false)} />
+      <ContactFormPanel
+        isOpen={isPanelOpen}
+        mode={formMode}
+        onClose={() => setIsPanelOpen(false)}
+      />
     </ListPageTemplate>
   );
 }
@@ -122,7 +147,7 @@ function accountName(accountId: string): string {
   return accounts.find((account) => account.id === accountId)?.name ?? "Unassigned";
 }
 
-function RowActionMenu(): JSX.Element {
+function RowActionMenu({ onEdit }: { onEdit: () => void }): JSX.Element {
   return (
     <details className="relative shrink-0">
       <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
@@ -132,6 +157,7 @@ function RowActionMenu(): JSX.Element {
         <button
           className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
           type="button"
+          onClick={onEdit}
         >
           Edit
         </button>

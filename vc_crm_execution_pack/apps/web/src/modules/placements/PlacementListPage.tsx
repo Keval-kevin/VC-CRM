@@ -1,21 +1,32 @@
-import { BadgeIndianRupee, Handshake } from "lucide-react";
+import { BadgeIndianRupee, Handshake, Plus } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { DataTableShell } from "../../components/shared/DataTableShell";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { PlacementFormPanel } from "./PlacementFormPanel";
 import { placements } from "./placementData";
 
 export function PlacementListPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   return (
     <div className="space-y-5">
       <PageHeader
         eyebrow="Delivery / Placements"
         title="Placements"
         subtitle="Selected candidates with joining dates, replacement windows, billing status, and authorized finance fields."
+        action={
+          <Button type="button" onClick={() => setIsPanelOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Create placement
+          </Button>
+        }
       />
       <section className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_160px_160px_160px]">
         <Input placeholder="Search placements" aria-label="Search placements" />
@@ -89,6 +100,12 @@ export function PlacementListPage(): JSX.Element {
         title="No placements match this view"
         description="Create a placement when a submitted candidate is selected and ready for joining and billing."
         actionLabel="Create placement"
+        onAction={() => setIsPanelOpen(true)}
+      />
+      <PlacementFormPanel
+        isOpen={isPanelOpen}
+        mode="create"
+        onClose={() => setIsPanelOpen(false)}
       />
     </div>
   );

@@ -28,6 +28,7 @@ import {
 
 export function OpportunityListPage(): JSX.Element {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const totals = useMemo(
     () => ({
       pipeline: opportunities.reduce((sum, opportunity) => sum + opportunity.valueCents, 0),
@@ -43,7 +44,13 @@ export function OpportunityListPage(): JSX.Element {
       title="Opportunities"
       description="Track deal value, stage movement, forecast, owners, and stale opportunities."
       primaryAction={
-        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           New opportunity
         </Button>
@@ -93,7 +100,10 @@ export function OpportunityListPage(): JSX.Element {
           title="No opportunities in this view"
           description="Convert a qualified lead or create an opportunity manually."
           actionLabel="Create opportunity"
-          onAction={() => setIsPanelOpen(true)}
+          onAction={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
         />
       }
     >
@@ -142,7 +152,13 @@ export function OpportunityListPage(): JSX.Element {
                 >
                   {opportunity.name}
                 </Link>
-                <RowActionMenu detailPath={`/opportunities/${opportunity.id}`} />
+                <RowActionMenu
+                  detailPath={`/opportunities/${opportunity.id}`}
+                  onEdit={() => {
+                    setFormMode("edit");
+                    setIsPanelOpen(true);
+                  }}
+                />
               </div>
             ),
           },
@@ -191,14 +207,20 @@ export function OpportunityListPage(): JSX.Element {
       </SurfaceCard>
       <OpportunityFormPanel
         isOpen={isPanelOpen}
-        mode="create"
+        mode={formMode}
         onClose={() => setIsPanelOpen(false)}
       />
     </ListPageTemplate>
   );
 }
 
-function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+function RowActionMenu({
+  detailPath,
+  onEdit,
+}: {
+  detailPath: string;
+  onEdit: () => void;
+}): JSX.Element {
   return (
     <details className="relative shrink-0">
       <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
@@ -211,6 +233,7 @@ function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
         <button
           className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
           type="button"
+          onClick={onEdit}
         >
           Edit
         </button>

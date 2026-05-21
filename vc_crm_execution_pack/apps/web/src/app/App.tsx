@@ -15,6 +15,7 @@ import { AccountDetailPage } from "../modules/accounts/AccountDetailPage";
 import { AccountListPage } from "../modules/accounts/AccountListPage";
 import { CandidateDetailPage } from "../modules/candidates/CandidateDetailPage";
 import { CandidateListPage } from "../modules/candidates/CandidateListPage";
+import { ContactDetailPage } from "../modules/contacts/ContactDetailPage";
 import { ContactListPage } from "../modules/contacts/ContactListPage";
 import { DashboardPage } from "../modules/dashboard/DashboardPage";
 import { LeadDetailPage } from "../modules/leads/LeadDetailPage";
@@ -64,6 +65,7 @@ export function App(): JSX.Element {
           <Route path="/accounts" element={<AccountListPage />} />
           <Route path="/accounts/:accountId" element={<AccountDetailPage />} />
           <Route path="/contacts" element={<ContactListPage />} />
+          <Route path="/contacts/:contactId" element={<ContactDetailPage />} />
           <Route path="/leads" element={<LeadListPage />} />
           <Route path="/leads/:leadId" element={<LeadDetailPage />} />
           <Route path="/opportunities" element={<OpportunityListPage />} />

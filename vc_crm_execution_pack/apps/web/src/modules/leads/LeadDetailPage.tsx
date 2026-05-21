@@ -2,18 +2,26 @@ import { Activity, Edit, FileSpreadsheet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { EmptyState } from "../../components/shared/EmptyState";
-import { PageHeader } from "../../components/shared/PageHeader";
-import { Badge } from "../../components/ui/badge";
+import {
+  DetailField,
+  DetailSection,
+  DetailSummaryGrid,
+  EmptyState,
+  SectionTabs,
+  StatusBadge,
+} from "../../components/shared";
+import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { LeadFormPanel } from "./LeadFormPanel";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { leads } from "./leadData";
 
+const canViewAuditLog = true;
+
 export function LeadDetailPage(): JSX.Element {
   const { leadId } = useParams();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const lead = useMemo(
     () =>
       leads.find((candidate) => candidate.id === leadId) ?? {
@@ -31,79 +39,82 @@ export function LeadDetailPage(): JSX.Element {
     [leadId],
   );
 
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "activities", label: "Activities" },
+    { id: "related", label: "Related" },
+    ...(canViewAuditLog ? [{ id: "audit", label: "Audit Log" }] : []),
+  ];
+
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="CRM / Lead detail"
-        title={lead.name}
-        subtitle={`${lead.company} · ${lead.source} lead · owned by ${lead.owner}.`}
-        action={
-          <Button type="button" onClick={() => setIsPanelOpen(true)}>
-            <Edit className="h-4 w-4" />
-            Edit lead
-          </Button>
-        }
-      />
-      <section className="grid gap-3 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Lifecycle</p>
-            <div className="mt-2">
-              <LeadStatusBadge status={lead.status} />
+    <DetailPageTemplate
+      eyebrow="Sales / Lead detail"
+      title={lead.name}
+      description={`${lead.company} - ${lead.source} lead - owned by ${lead.owner}.`}
+      primaryAction={
+        <Button type="button" onClick={() => setIsPanelOpen(true)}>
+          <Edit className="h-4 w-4" />
+          Edit lead
+        </Button>
+      }
+      kpiSection={
+        <DetailSummaryGrid
+          items={[
+            { label: "Lifecycle", value: <LeadStatusBadge status={lead.status} /> },
+            { label: "Score", value: lead.score },
+            { label: "Follow-up", value: lead.followUp },
+            { label: "Source", value: lead.source },
+          ]}
+        />
+      }
+      toolbar={
+        <div className="sticky top-16 z-10 rounded-card border border-border bg-card shadow-card">
+          <SectionTabs tabs={tabs} activeTabId={activeTab} onChange={setActiveTab} />
+        </div>
+      }
+    >
+      {activeTab === "overview" && (
+        <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+          <DetailSection title="Import and disposition">
+            <DetailField label="Email" value={lead.email} />
+            <DetailField label="Phone" value={lead.phone} />
+            <DetailField label="Owner" value={lead.owner} />
+            <StatusBadge tone="warning">Import-ready fields</StatusBadge>
+          </DetailSection>
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="No conversion record yet"
+            description="Account/contact/opportunity conversion can build on this lead detail layout later."
+            actionLabel="Convert lead"
+          />
+        </div>
+      )}
+      {activeTab === "activities" && (
+        <DetailSection title="Lead activity timeline">
+          {["Lead created", "Score calculated", "Follow-up scheduled"].map((item) => (
+            <div key={item} className="rounded-card border border-border p-3">
+              <StatusBadge>{item}</StatusBadge>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Timeline relation is ready for real lead activity.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-        {[
-          ["Score", lead.score],
-          ["Follow-up", lead.followUp],
-          ["Source", lead.source],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-sm font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-vc-blue" />
-              <h2 className="text-base font-semibold text-vc-navy">Lead activity timeline</h2>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {["Lead created", "Score calculated", "Follow-up scheduled"].map((item) => (
-              <div key={item} className="rounded-lg border border-border p-3">
-                <Badge>{item}</Badge>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Timeline relation is ready for real lead activity.
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <h2 className="text-base font-semibold text-vc-navy">Import and disposition</h2>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Email: {lead.email}</p>
-            <p>Phone: {lead.phone}</p>
-            <p>Lost/disqualified reason slots are available in the backend lifecycle payload.</p>
-            <Badge variant="warning">Import-ready fields</Badge>
-          </CardContent>
-        </Card>
-      </section>
-      <EmptyState
-        icon={FileSpreadsheet}
-        title="No conversion record yet"
-        description="Account/contact/opportunity conversion can build on this lead detail layout later."
-        actionLabel="Convert lead"
-      />
+          ))}
+        </DetailSection>
+      )}
+      {activeTab === "related" && (
+        <EmptyState
+          icon={Activity}
+          title="No related records yet"
+          description="Related account, contact, opportunity, and proposal records will appear here."
+          actionLabel="Add related record"
+        />
+      )}
+      {activeTab === "audit" && canViewAuditLog && (
+        <DetailSection title="Audit Log">
+          <DetailField label="Last update" value="Sample audit entry" />
+        </DetailSection>
+      )}
       <LeadFormPanel isOpen={isPanelOpen} mode="edit" onClose={() => setIsPanelOpen(false)} />
-    </div>
+    </DetailPageTemplate>
   );
 }

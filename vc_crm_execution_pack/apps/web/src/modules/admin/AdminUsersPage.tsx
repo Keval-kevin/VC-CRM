@@ -1,13 +1,15 @@
 import { Plus, UserCog } from "lucide-react";
+import { useState } from "react";
 
 import { DataTableShell } from "../../components/shared/DataTableShell";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { UserFormPanel } from "./UserFormPanel";
 
 export function AdminUsersPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -15,13 +17,13 @@ export function AdminUsersPage(): JSX.Element {
         title="Users"
         subtitle="Invite users, review status, assign roles, and inspect login/session history inside the current tenant."
         action={
-          <Button type="button">
+          <Button type="button" onClick={() => setIsPanelOpen(true)}>
             <Plus className="h-4 w-4" />
             Invite user
           </Button>
         }
       />
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_360px]">
+      <section>
         <DataTableShell
           title="Tenant users"
           columns={[
@@ -54,25 +56,15 @@ export function AdminUsersPage(): JSX.Element {
             },
           ]}
         />
-        <Card>
-          <CardHeader>
-            <h2 className="text-base font-semibold text-vc-navy">Create/edit pattern</h2>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <Input placeholder="First name" />
-            <Input placeholder="Last name" />
-            <Input placeholder="Email" />
-            <Input placeholder="Role" />
-            <Button type="button">Save user draft</Button>
-          </CardContent>
-        </Card>
       </section>
       <EmptyState
         icon={UserCog}
         title="No filtered users"
         description="Filtering, empty state, create, edit, and detail slots are ready for the admin API integration."
-        actionLabel="Clear filters"
+        actionLabel="Invite user"
+        onAction={() => setIsPanelOpen(true)}
       />
+      <UserFormPanel isOpen={isPanelOpen} mode="create" onClose={() => setIsPanelOpen(false)} />
     </div>
   );
 }

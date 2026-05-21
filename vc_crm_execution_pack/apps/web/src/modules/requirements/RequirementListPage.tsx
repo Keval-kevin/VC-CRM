@@ -1,4 +1,5 @@
 import { RadioTower, Send, Target } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { DataTableShell } from "../../components/shared/DataTableShell";
@@ -8,9 +9,12 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { RequirementFormPanel } from "./RequirementFormPanel";
 import { requirements, submissions } from "./requirementData";
 
 export function RequirementListPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -18,7 +22,7 @@ export function RequirementListPage(): JSX.Element {
         title="Requirements"
         subtitle="Staff augmentation demand linked to accounts and opportunities, with skills, budget, work mode, positions, priority, and status."
         action={
-          <Button type="button">
+          <Button type="button" onClick={() => setIsPanelOpen(true)}>
             <Target className="h-4 w-4" />
             New requirement
           </Button>
@@ -120,6 +124,12 @@ export function RequirementListPage(): JSX.Element {
         title="No requirements match this view"
         description="Clear filters or create a requirement linked to an account or opportunity."
         actionLabel="Add requirement"
+        onAction={() => setIsPanelOpen(true)}
+      />
+      <RequirementFormPanel
+        isOpen={isPanelOpen}
+        mode="create"
+        onClose={() => setIsPanelOpen(false)}
       />
     </div>
   );

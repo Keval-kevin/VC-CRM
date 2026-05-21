@@ -1,4 +1,5 @@
 import { FileCheck2, Filter, Plus } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -13,9 +14,12 @@ import {
 import { ListPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { VendorFormPanel } from "./VendorFormPanel";
 import { vendors, type Vendor } from "./vendorData";
 
 export function VendorListPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const warningCount = vendors.filter((vendor) => vendor.riskStatus === "Warning").length;
 
   return (
@@ -24,7 +28,13 @@ export function VendorListPage(): JSX.Element {
       title="Vendors"
       description="Manage partner vendors by expertise, compliance readiness, score, risk, and portal status."
       primaryAction={
-        <Button type="button">
+        <Button
+          type="button"
+          onClick={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4" />
           New vendor
         </Button>
@@ -73,6 +83,10 @@ export function VendorListPage(): JSX.Element {
           title="No vendors match this view"
           description="Clear filters or add a vendor with categories, documents, rate cards, and portal fields."
           actionLabel="Add vendor"
+          onAction={() => {
+            setFormMode("create");
+            setIsPanelOpen(true);
+          }}
         />
       }
     >
@@ -93,7 +107,13 @@ export function VendorListPage(): JSX.Element {
                   </Link>
                   <p className="truncate text-xs text-muted-foreground">{vendor.location}</p>
                 </div>
-                <RowActionMenu detailPath={`/vendors/${vendor.id}`} />
+                <RowActionMenu
+                  detailPath={`/vendors/${vendor.id}`}
+                  onEdit={() => {
+                    setFormMode("edit");
+                    setIsPanelOpen(true);
+                  }}
+                />
               </div>
             ),
           },
@@ -119,11 +139,22 @@ export function VendorListPage(): JSX.Element {
         rows={vendors}
         getRowId={(vendor) => vendor.id}
       />
+      <VendorFormPanel
+        isOpen={isPanelOpen}
+        mode={formMode}
+        onClose={() => setIsPanelOpen(false)}
+      />
     </ListPageTemplate>
   );
 }
 
-function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+function RowActionMenu({
+  detailPath,
+  onEdit,
+}: {
+  detailPath: string;
+  onEdit: () => void;
+}): JSX.Element {
   return (
     <details className="relative shrink-0">
       <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
@@ -136,6 +167,7 @@ function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
         <button
           className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
           type="button"
+          onClick={onEdit}
         >
           Edit
         </button>

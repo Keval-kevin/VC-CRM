@@ -1,20 +1,31 @@
-import { CalendarClock, Send } from "lucide-react";
+import { CalendarClock, Plus, Send } from "lucide-react";
+import { useState } from "react";
 
 import { DataTableShell } from "../../components/shared/DataTableShell";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { submissions } from "./requirementData";
+import { SubmissionFormPanel } from "./SubmissionFormPanel";
 
 export function SubmissionListPage(): JSX.Element {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   return (
     <div className="space-y-5">
       <PageHeader
         eyebrow="Delivery / Submissions"
         title="Submissions"
         subtitle="Candidate submission pipeline with technical review, client submission, interview scheduling placeholder, and feedback capture."
+        action={
+          <Button type="button" onClick={() => setIsPanelOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New submission
+          </Button>
+        }
       />
       <section className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_160px_160px_160px]">
         <Input placeholder="Search submissions" aria-label="Search submissions" />
@@ -79,7 +90,8 @@ export function SubmissionListPage(): JSX.Element {
         icon={CalendarClock}
         title="No submissions match this view"
         description="Submit candidates from a requirement to track review, client submission, interviews, and feedback."
-        actionLabel="View requirements"
+        actionLabel="Create submission"
+        onAction={() => setIsPanelOpen(true)}
       />
       <Card>
         <CardContent className="p-4">
@@ -92,6 +104,11 @@ export function SubmissionListPage(): JSX.Element {
           </p>
         </CardContent>
       </Card>
+      <SubmissionFormPanel
+        isOpen={isPanelOpen}
+        mode="create"
+        onClose={() => setIsPanelOpen(false)}
+      />
     </div>
   );
 }
