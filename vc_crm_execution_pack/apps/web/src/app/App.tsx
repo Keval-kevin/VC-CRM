@@ -13,6 +13,8 @@ import { AccountDetailPage } from "../modules/accounts/AccountDetailPage";
 import { AccountListPage } from "../modules/accounts/AccountListPage";
 import { ContactListPage } from "../modules/contacts/ContactListPage";
 import { DashboardPage } from "../modules/dashboard/DashboardPage";
+import { LeadDetailPage } from "../modules/leads/LeadDetailPage";
+import { LeadListPage } from "../modules/leads/LeadListPage";
 import { PlaceholderPage } from "../modules/placeholders/PlaceholderPage";
 import { HealthPage } from "./HealthPage";
 import { placeholderRoutes } from "./routes";
@@ -37,6 +39,8 @@ export function App(): JSX.Element {
           <Route path="/accounts" element={<AccountListPage />} />
           <Route path="/accounts/:accountId" element={<AccountDetailPage />} />
           <Route path="/contacts" element={<ContactListPage />} />
+          <Route path="/leads" element={<LeadListPage />} />
+          <Route path="/leads/:leadId" element={<LeadDetailPage />} />
           {placeholderRoutes.map((route) => (
             <Route key={route.path} path={route.path} element={<PlaceholderPage route={route} />} />
           ))}

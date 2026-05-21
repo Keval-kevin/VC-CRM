@@ -5,14 +5,95 @@ import { describe, expect, it } from "vitest";
 import {
   createAccount,
   createContact,
+  createLead,
   deleteAccount,
+  deleteLead,
   listAccounts,
+  listLeads,
   updateContact,
+  updateLead,
 } from "../src/modules/crm/crm.service.js";
 import type { CrmActor } from "../src/modules/crm/crm.types.js";
 import { prisma } from "../src/shared/prisma/client.js";
 
 describe("crm service", (): void => {
+  it("creates, scores, updates, and soft deletes tenant-scoped leads with timeline/audit", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const email = `lead-service-${randomUUID()}@example.com`;
+    const lead = await createLead(
+      actor,
+      {},
+      {
+        firstName: "Service",
+        lastName: "Lead",
+        email,
+        phone: "+91 99999 10000",
+        company: `Lead Company ${randomUUID()}`,
+        source: "Website",
+        serviceInterest: "Staff augmentation",
+        budgetRange: "10L-25L",
+        followUpAt: new Date(),
+      },
+    );
+    const leadId = getId(lead);
+
+    const listed = await listLeads(actor, {
+      page: 1,
+      pageSize: 10,
+      search: "Service",
+      sortDirection: "desc",
+      status: "NEW",
+    });
+
+    expect(listed.items.length).toBeGreaterThan(0);
+    expect((lead as { score?: number }).score).toBeGreaterThan(20);
+
+    await updateLead(actor, {}, leadId, {
+      status: "DISQUALIFIED",
+      disqualifiedReason: "Not an ICP fit",
+    });
+
+    const timelineCount = await prisma.activityTimelineItem.count({
+      where: { tenantId: actor.tenantId ?? "", leadId },
+    });
+    const auditCount = await prisma.auditLog.count({
+      where: { tenantId: actor.tenantId, entityId: leadId, action: { startsWith: "leads." } },
+    });
+
+    expect(timelineCount).toBeGreaterThan(1);
+    expect(auditCount).toBeGreaterThan(1);
+
+    await deleteLead(actor, {}, leadId);
+    const deleted = await prisma.lead.findUniqueOrThrow({
+      where: { id: leadId },
+      select: { deletedAt: true },
+    });
+    expect(deleted.deletedAt).toBeInstanceOf(Date);
+  });
+
+  it("detects duplicate leads by email, phone, and company", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const email = `lead-duplicate-${randomUUID()}@example.com`;
+    const phone = `+91 ${randomUUID().slice(0, 8)}`;
+    const company = `Lead Duplicate ${randomUUID()}`;
+
+    await createLead(
+      actor,
+      {},
+      { firstName: "One", lastName: "Lead", email, phone, company, source: "Referral" },
+    );
+
+    await expect(
+      createLead(actor, {}, { firstName: "Two", lastName: "Lead", email, source: "Referral" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      createLead(actor, {}, { firstName: "Three", lastName: "Lead", phone, source: "Referral" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      createLead(actor, {}, { firstName: "Four", lastName: "Lead", company, source: "Referral" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
   it("creates tenant-scoped account/contact records, timeline entries, and audit logs", async (): Promise<void> => {
     const actor = await getTenantActor();
     const name = `Service Account ${randomUUID()}`;

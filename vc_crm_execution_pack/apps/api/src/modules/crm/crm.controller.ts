@@ -7,21 +7,69 @@ import {
   contactListQuerySchema,
   createAccountSchema,
   createContactSchema,
+  createLeadSchema,
+  leadListQuerySchema,
   updateAccountSchema,
   updateContactSchema,
+  updateLeadSchema,
 } from "./crm.schema.js";
 import {
   createAccount,
   createContact,
+  createLead,
   deleteAccount,
   deleteContact,
+  deleteLead,
   getAccount,
   getContact,
+  getLead,
   listAccounts,
   listContacts,
+  listLeads,
   updateAccount,
   updateContact,
+  updateLead,
 } from "./crm.service.js";
+
+export async function listLeadsController(request: Request, response: Response): Promise<void> {
+  const query = leadListQuerySchema.parse(request.query);
+  response.status(200).json(createSuccessResponse(await listLeads(requireAuth(request), query)));
+}
+
+export async function getLeadController(request: Request, response: Response): Promise<void> {
+  response
+    .status(200)
+    .json(createSuccessResponse(await getLead(requireAuth(request), getParam(request, "leadId"))));
+}
+
+export async function createLeadController(request: Request, response: Response): Promise<void> {
+  const input = createLeadSchema.parse(request.body);
+  const result = await createLead(requireAuth(request), getContext(request), input);
+
+  response.status(201).json(createSuccessResponse(result));
+}
+
+export async function updateLeadController(request: Request, response: Response): Promise<void> {
+  const input = updateLeadSchema.parse(request.body);
+  const result = await updateLead(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "leadId"),
+    input,
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
+
+export async function deleteLeadController(request: Request, response: Response): Promise<void> {
+  const result = await deleteLead(
+    requireAuth(request),
+    getContext(request),
+    getParam(request, "leadId"),
+  );
+
+  response.status(200).json(createSuccessResponse(result));
+}
 
 export async function listAccountsController(request: Request, response: Response): Promise<void> {
   const query = accountListQuerySchema.parse(request.query);

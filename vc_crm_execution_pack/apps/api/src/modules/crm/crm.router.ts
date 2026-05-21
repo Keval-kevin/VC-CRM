@@ -8,19 +8,50 @@ import { requireTenant } from "../../shared/middleware/tenant.middleware.js";
 import {
   createAccountController,
   createContactController,
+  createLeadController,
   deleteAccountController,
   deleteContactController,
+  deleteLeadController,
   getAccountController,
   getContactController,
+  getLeadController,
   listAccountsController,
   listContactsController,
+  listLeadsController,
   updateAccountController,
   updateContactController,
+  updateLeadController,
 } from "./crm.controller.js";
 
 export const crmRouter = Router();
 
 crmRouter.use(requireAuth, requireTenant);
+
+crmRouter.get(
+  "/leads",
+  requirePermission(permissions.leadsRead),
+  asyncHandler(listLeadsController),
+);
+crmRouter.post(
+  "/leads",
+  requirePermission(permissions.leadsCreate),
+  asyncHandler(createLeadController),
+);
+crmRouter.get(
+  "/leads/:leadId",
+  requirePermission(permissions.leadsRead),
+  asyncHandler(getLeadController),
+);
+crmRouter.patch(
+  "/leads/:leadId",
+  requirePermission(permissions.leadsUpdate),
+  asyncHandler(updateLeadController),
+);
+crmRouter.delete(
+  "/leads/:leadId",
+  requirePermission(permissions.leadsDelete),
+  asyncHandler(deleteLeadController),
+);
 
 crmRouter.get(
   "/accounts",

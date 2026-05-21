@@ -20,6 +20,9 @@ beforeEach((): void => {
 });
 
 afterAll(async (): Promise<void> => {
+  await prisma.lead.deleteMany({
+    where: { email: { endsWith: `@${testDomain}` } },
+  });
   await prisma.activityTimelineItem.deleteMany({
     where: { title: { contains: "CRM Test" } },
   });
@@ -42,6 +45,158 @@ afterAll(async (): Promise<void> => {
 });
 
 describe("crm API", (): void => {
+  it("supports lead CRUD, lifecycle, filters, scoring, timeline, and audit logs", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const tenantAdmin = await prisma.user.findUniqueOrThrow({
+      where: { email: "tenant.admin@virtualcoders.local" },
+      select: { id: true },
+    });
+    const email = `lead-api-${randomUUID()}@${testDomain}`;
+    const company = `CRM Test Lead Company ${randomUUID()}`;
+
+    const createResponse = await request(app)
+      .post("/api/v1/leads")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        firstName: "API",
+        lastName: "Lead",
+        email,
+        phone: "+91 98765 43210",
+        company,
+        source: "Website",
+        ownerId: tenantAdmin.id,
+        serviceInterest: "Dedicated team",
+        budgetRange: "25L-50L",
+        followUpAt: new Date().toISOString(),
+        importBatchId: "test-import-batch",
+        importExternalId: "row-1",
+        importSourceFilename: "leads.csv",
+      })
+      .expect(201);
+    const lead = getData(createResponse);
+    const leadId = String(lead.id);
+
+    expect(lead).toMatchObject({
+      email,
+      source: "Website",
+      status: "NEW",
+      ownerId: tenantAdmin.id,
+      importBatchId: "test-import-batch",
+    });
+    expect(Number(lead.score)).toBeGreaterThan(20);
+
+    const listResponse = await request(app)
+      .get("/api/v1/leads")
+      .query({ page: 1, pageSize: 5, search: "API", source: "Website", status: "NEW" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    const listData = getData(listResponse);
+    expect((listData.items as unknown[]).length).toBeGreaterThan(0);
+
+    const detailResponse = await request(app)
+      .get(`/api/v1/leads/${leadId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(getData(detailResponse).activities).toEqual(expect.any(Array));
+
+    await request(app)
+      .patch(`/api/v1/leads/${leadId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ status: "LOST", lostReason: "No budget", followUpAt: new Date().toISOString() })
+      .expect(200);
+
+    await request(app)
+      .delete(`/api/v1/leads/${leadId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        entityId: leadId,
+        action: { in: ["leads.created", "leads.updated", "leads.deleted"] },
+      },
+    });
+    expect(auditCount).toBe(3);
+  });
+
+  it("rejects duplicate leads and tenantId payloads", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const email = `lead-duplicate-api-${randomUUID()}@${testDomain}`;
+    const company = `CRM Test Duplicate Lead ${randomUUID()}`;
+
+    await request(app)
+      .post("/api/v1/leads")
+      .set("authorization", `Bearer ${token}`)
+      .send({ firstName: "Dup", lastName: "Lead", email, company, source: "Referral" })
+      .expect(201);
+
+    await request(app)
+      .post("/api/v1/leads")
+      .set("authorization", `Bearer ${token}`)
+      .send({ firstName: "Dup2", lastName: "Lead", email, source: "Referral" })
+      .expect(409);
+
+    const invalidResponse = await request(app)
+      .post("/api/v1/leads")
+      .set("authorization", `Bearer ${token}`)
+      .send({ firstName: "Bad", lastName: "Lead", source: "Website", tenantId: randomUUID() })
+      .expect(400);
+
+    expect(invalidResponse.body).toMatchObject({ success: false, error: { code: "VAL_001" } });
+  });
+
+  it("enforces RBAC and tenant isolation for lead endpoints", async (): Promise<void> => {
+    const token = await login(await createUserWithoutCrmPermissions());
+
+    await request(app).get("/api/v1/leads").set("authorization", `Bearer ${token}`).expect(403);
+
+    const tenantToken = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: `CRM Test Lead Other ${randomUUID()}`,
+        slug: `lead-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      },
+      select: { id: true },
+    });
+    const otherLead = await prisma.lead.create({
+      data: {
+        tenantId: otherTenant.id,
+        firstName: "Other",
+        lastName: "Lead",
+        source: "Website",
+      },
+      select: { id: true },
+    });
+    const otherUser = await prisma.user.create({
+      data: {
+        tenantId: otherTenant.id,
+        email: `other-owner-${randomUUID()}@${testDomain}`,
+        passwordHash: await bcrypt.hash(seededPassword, 12),
+        firstName: "Other",
+        lastName: "Owner",
+        status: UserStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get(`/api/v1/leads/${otherLead.id}`)
+      .set("authorization", `Bearer ${tenantToken}`)
+      .expect(404);
+
+    await request(app)
+      .post("/api/v1/leads")
+      .set("authorization", `Bearer ${tenantToken}`)
+      .send({
+        firstName: "Cross",
+        lastName: "Owner",
+        company: `CRM Test Cross Owner ${randomUUID()}`,
+        source: "Website",
+        ownerId: otherUser.id,
+      })
+      .expect(400);
+  });
+
   it("supports account CRUD, pagination, search, contacts sub-table, timeline, and audit logs", async (): Promise<void> => {
     const token = await login("tenant.admin@virtualcoders.local");
     const accountName = `CRM Test Account ${randomUUID()}`;

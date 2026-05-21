@@ -30,10 +30,10 @@ describe("App", (): void => {
   });
 
   it("renders placeholder module pages with a table shell", (): void => {
-    renderApp("/leads");
+    renderApp("/opportunities");
 
-    expect(screen.getByRole("heading", { name: "Leads" })).toBeInTheDocument();
-    expect(screen.getByText("Leads list shell")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Opportunities" })).toBeInTheDocument();
+    expect(screen.getByText("Opportunities list shell")).toBeInTheDocument();
   });
 
   it("renders accounts list and account detail layouts", (): void => {
@@ -47,6 +47,20 @@ describe("App", (): void => {
     expect(screen.getByRole("heading", { name: "Acme Cloud Systems" })).toBeInTheDocument();
     expect(screen.getByText("Contacts sub-table")).toBeInTheDocument();
     expect(screen.getByText("Activity timeline")).toBeInTheDocument();
+  });
+
+  it("renders lead list and detail layouts", (): void => {
+    renderApp("/leads");
+
+    expect(screen.getByRole("heading", { name: "Leads" })).toBeInTheDocument();
+    expect(screen.getByText("Lead list")).toBeInTheDocument();
+    expect(screen.getByText("Bulk assign placeholder")).toBeInTheDocument();
+    expect(screen.getAllByText("Avni Shah").length).toBeGreaterThan(0);
+
+    renderApp("/leads/lead-1");
+    expect(screen.getByRole("heading", { name: "Avni Shah" })).toBeInTheDocument();
+    expect(screen.getByText("Lead activity timeline")).toBeInTheDocument();
+    expect(screen.getByText("Import and disposition")).toBeInTheDocument();
   });
 
   it("renders contacts list layout", (): void => {

@@ -7,6 +7,30 @@ const developmentPassword = "Password123!";
 
 const permissions = [
   {
+    key: "leads:read:all",
+    name: "Read leads",
+    category: "leads",
+    description: "View all tenant leads.",
+  },
+  {
+    key: "leads:create",
+    name: "Create leads",
+    category: "leads",
+    description: "Create tenant leads.",
+  },
+  {
+    key: "leads:update:all",
+    name: "Update leads",
+    category: "leads",
+    description: "Update all tenant leads.",
+  },
+  {
+    key: "leads:delete:all",
+    name: "Delete leads",
+    category: "leads",
+    description: "Soft delete tenant leads.",
+  },
+  {
     key: "accounts:read:all",
     name: "Read accounts",
     category: "accounts",
@@ -195,6 +219,10 @@ async function main(): Promise<void> {
   await assignPermissions(
     tenantAdminRole.id,
     [
+      permissionIds.get("leads:read:all"),
+      permissionIds.get("leads:create"),
+      permissionIds.get("leads:update:all"),
+      permissionIds.get("leads:delete:all"),
       permissionIds.get("accounts:read:all"),
       permissionIds.get("accounts:create"),
       permissionIds.get("accounts:update:all"),

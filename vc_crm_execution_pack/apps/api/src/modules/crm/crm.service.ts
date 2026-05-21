@@ -7,8 +7,11 @@ import type {
   ContactListQuery,
   CreateAccountInput,
   CreateContactInput,
+  CreateLeadInput,
+  LeadListQuery,
   UpdateAccountInput,
   UpdateContactInput,
+  UpdateLeadInput,
 } from "./crm.schema.js";
 import type { CrmActor, CrmRequestContext, PaginatedResult } from "./crm.types.js";
 
@@ -89,6 +92,229 @@ const contactSelect = {
     take: 10,
   },
 } satisfies Prisma.ContactSelect;
+
+const leadSelect = {
+  id: true,
+  tenantId: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  company: true,
+  website: true,
+  companyDomain: true,
+  linkedinUrl: true,
+  country: true,
+  source: true,
+  serviceInterest: true,
+  budgetRange: true,
+  status: true,
+  score: true,
+  scoreReason: true,
+  ownerId: true,
+  followUpAt: true,
+  lostReason: true,
+  disqualifiedReason: true,
+  importBatchId: true,
+  importExternalId: true,
+  importSourceFilename: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+  activities: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      description: true,
+      occurredAt: true,
+    },
+    orderBy: { occurredAt: Prisma.SortOrder.desc },
+    take: 10,
+  },
+} satisfies Prisma.LeadSelect;
+
+export async function listLeads(
+  actor: CrmActor,
+  query: LeadListQuery,
+): Promise<PaginatedResult<unknown>> {
+  const tenantId = requireTenant(actor);
+  const where: Prisma.LeadWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(query.source === undefined
+      ? {}
+      : { source: { contains: query.source, mode: "insensitive" } }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+    ...(query.ownerId === undefined ? {} : { ownerId: query.ownerId }),
+    ...(query.followUpFrom === undefined && query.followUpTo === undefined
+      ? {}
+      : {
+          followUpAt: {
+            ...(query.followUpFrom === undefined ? {} : { gte: query.followUpFrom }),
+            ...(query.followUpTo === undefined ? {} : { lte: query.followUpTo }),
+          },
+        }),
+    ...(query.search === undefined
+      ? {}
+      : {
+          OR: [
+            { firstName: { contains: query.search, mode: "insensitive" } },
+            { lastName: { contains: query.search, mode: "insensitive" } },
+            { email: { contains: query.search, mode: "insensitive" } },
+            { phone: { contains: query.search, mode: "insensitive" } },
+            { company: { contains: query.search, mode: "insensitive" } },
+          ],
+        }),
+  };
+  const [items, total] = await prisma.$transaction([
+    prisma.lead.findMany({
+      where,
+      orderBy: getLeadOrderBy(query),
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+      select: leadSelect,
+    }),
+    prisma.lead.count({ where }),
+  ]);
+
+  return toPaginatedResult(items, total, query.page, query.pageSize);
+}
+
+export async function getLead(actor: CrmActor, leadId: string): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const lead = await prisma.lead.findFirst({
+    where: { id: leadId, tenantId, deletedAt: null },
+    select: leadSelect,
+  });
+
+  if (lead === null) {
+    throw new AppError("NOT_FOUND", "Lead not found", 404);
+  }
+
+  return lead;
+}
+
+export async function createLead(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  input: CreateLeadInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertLeadOwnerBelongsToTenant(tenantId, input.ownerId);
+  await assertNoDuplicateLead(tenantId, input);
+  const score = scoreLead(input);
+
+  const lead = await prisma.lead.create({
+    data: {
+      tenantId,
+      ...input,
+      companyDomain: normalizeDomain(input.companyDomain ?? input.website),
+      score: score.score,
+      scoreReason: score.reason,
+      createdById: actor.sub,
+      activities: {
+        create: {
+          tenantId,
+          type: "lead.created",
+          title: "Lead created",
+          description: `${input.firstName} ${input.lastName} was created from ${input.source}.`,
+          createdById: actor.sub,
+        },
+      },
+    },
+    select: leadSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "leads.created",
+    entityType: "lead",
+    entityId: getRecordId(lead),
+    tenantId,
+    metadata: { source: input.source, score: score.score },
+  });
+
+  return lead;
+}
+
+export async function updateLead(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  leadId: string,
+  input: UpdateLeadInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const existingLead = await assertLeadExists(tenantId, leadId);
+  await assertLeadOwnerBelongsToTenant(tenantId, input.ownerId);
+  await assertNoDuplicateLead(tenantId, input, leadId);
+  const score = scoreLead({
+    email: input.email ?? existingLead.email ?? undefined,
+    phone: input.phone ?? existingLead.phone ?? undefined,
+    company: input.company ?? existingLead.company ?? undefined,
+    serviceInterest: input.serviceInterest ?? existingLead.serviceInterest ?? undefined,
+    budgetRange: input.budgetRange ?? existingLead.budgetRange ?? undefined,
+    followUpAt: input.followUpAt ?? existingLead.followUpAt ?? undefined,
+  });
+
+  const lead = await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      ...input,
+      ...(input.companyDomain !== undefined || input.website !== undefined
+        ? { companyDomain: normalizeDomain(input.companyDomain ?? input.website) }
+        : {}),
+      ...(Object.keys(input).length === 0 ? {} : { score: score.score, scoreReason: score.reason }),
+      updatedById: actor.sub,
+      activities: {
+        create: {
+          tenantId,
+          type: "lead.updated",
+          title: "Lead updated",
+          description: "Lead fields or lifecycle status were updated.",
+          createdById: actor.sub,
+        },
+      },
+    },
+    select: leadSelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "leads.updated",
+    entityType: "lead",
+    entityId: leadId,
+    tenantId,
+    metadata: input as Record<string, unknown>,
+  });
+
+  return lead;
+}
+
+export async function deleteLead(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  leadId: string,
+): Promise<{ deleted: true }> {
+  const tenantId = requireTenant(actor);
+  await assertLeadExists(tenantId, leadId);
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      deletedAt: new Date(),
+      deletedById: actor.sub,
+    },
+  });
+
+  await createAuditLog(actor, context, {
+    action: "leads.deleted",
+    entityType: "lead",
+    entityId: leadId,
+    tenantId,
+  });
+
+  return { deleted: true };
+}
 
 export async function listAccounts(
   actor: CrmActor,
@@ -439,6 +665,50 @@ async function assertNoDuplicateAccount(
   }
 }
 
+async function assertNoDuplicateLead(
+  tenantId: string,
+  input: {
+    email?: string;
+    phone?: string;
+    company?: string;
+    companyDomain?: string;
+    website?: string;
+  },
+  excludeId?: string,
+): Promise<void> {
+  const companyDomain = normalizeDomain(input.companyDomain ?? input.website);
+  const duplicateFilters: Prisma.LeadWhereInput[] = [
+    ...(input.email === undefined
+      ? []
+      : [{ email: { equals: input.email, mode: Prisma.QueryMode.insensitive } }]),
+    ...(input.phone === undefined ? [] : [{ phone: input.phone }]),
+    ...(input.company === undefined
+      ? []
+      : [{ company: { equals: input.company, mode: Prisma.QueryMode.insensitive } }]),
+    ...(companyDomain === undefined
+      ? []
+      : [{ companyDomain: { equals: companyDomain, mode: Prisma.QueryMode.insensitive } }]),
+  ];
+
+  if (duplicateFilters.length === 0) {
+    return;
+  }
+
+  const duplicate = await prisma.lead.findFirst({
+    where: {
+      tenantId,
+      deletedAt: null,
+      ...(excludeId === undefined ? {} : { id: { not: excludeId } }),
+      OR: duplicateFilters,
+    },
+    select: { id: true },
+  });
+
+  if (duplicate !== null) {
+    throw new AppError("CONFLICT", "Duplicate lead detected", 409);
+  }
+}
+
 async function assertNoDuplicateContact(
   tenantId: string,
   input: { email?: string; phone?: string },
@@ -480,6 +750,36 @@ async function assertAccountExists(tenantId: string, accountId: string): Promise
   }
 }
 
+async function assertLeadExists(
+  tenantId: string,
+  leadId: string,
+): Promise<{
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  serviceInterest: string | null;
+  budgetRange: string | null;
+  followUpAt: Date | null;
+}> {
+  const lead = await prisma.lead.findFirst({
+    where: { id: leadId, tenantId, deletedAt: null },
+    select: {
+      email: true,
+      phone: true,
+      company: true,
+      serviceInterest: true,
+      budgetRange: true,
+      followUpAt: true,
+    },
+  });
+
+  if (lead === null) {
+    throw new AppError("NOT_FOUND", "Lead not found", 404);
+  }
+
+  return lead;
+}
+
 async function assertContactExists(tenantId: string, contactId: string): Promise<void> {
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, tenantId, deletedAt: null },
@@ -500,6 +800,21 @@ async function assertContactAccountBelongsToTenant(
   }
 
   await assertAccountExists(tenantId, accountId);
+}
+
+async function assertLeadOwnerBelongsToTenant(tenantId: string, ownerId?: string): Promise<void> {
+  if (ownerId === undefined) {
+    return;
+  }
+
+  const owner = await prisma.user.findFirst({
+    where: { id: ownerId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (owner === null) {
+    throw new AppError("VALIDATION_ERROR", "Lead owner must belong to the active tenant", 400);
+  }
 }
 
 async function createAuditLog(
@@ -560,6 +875,22 @@ function getAccountOrderBy(query: AccountListQuery): Prisma.AccountOrderByWithRe
   return { createdAt: query.sortDirection };
 }
 
+function getLeadOrderBy(query: LeadListQuery): Prisma.LeadOrderByWithRelationInput {
+  if (query.sortBy === "updatedAt") {
+    return { updatedAt: query.sortDirection };
+  }
+
+  if (query.sortBy === "firstName") {
+    return { firstName: query.sortDirection };
+  }
+
+  if (query.sortBy === "lastName") {
+    return { lastName: query.sortDirection };
+  }
+
+  return { createdAt: query.sortDirection };
+}
+
 function getContactOrderBy(query: ContactListQuery): Prisma.ContactOrderByWithRelationInput {
   if (query.sortBy === "firstName") {
     return { firstName: query.sortDirection };
@@ -604,4 +935,51 @@ function getRecordId(value: unknown): string {
   }
 
   throw new Error("Record id missing");
+}
+
+function scoreLead(input: {
+  email?: string;
+  phone?: string;
+  company?: string;
+  serviceInterest?: string;
+  budgetRange?: string;
+  followUpAt?: Date;
+}): { score: number; reason: string } {
+  let score = 20;
+  const reasons: string[] = ["Base lead score"];
+
+  if (input.email !== undefined && !input.email.endsWith("@gmail.com")) {
+    score += 25;
+    reasons.push("business email");
+  }
+
+  if (input.phone !== undefined) {
+    score += 10;
+    reasons.push("phone available");
+  }
+
+  if (input.company !== undefined) {
+    score += 15;
+    reasons.push("company provided");
+  }
+
+  if (input.serviceInterest !== undefined) {
+    score += 15;
+    reasons.push("service interest provided");
+  }
+
+  if (input.budgetRange !== undefined) {
+    score += 10;
+    reasons.push("budget range provided");
+  }
+
+  if (input.followUpAt !== undefined) {
+    score += 5;
+    reasons.push("follow-up scheduled");
+  }
+
+  return {
+    score: Math.min(score, 100),
+    reason: reasons.join(", "),
+  };
 }
