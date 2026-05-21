@@ -1,108 +1,145 @@
-import { FileCheck2, Plus } from "lucide-react";
+import { FileCheck2, Filter, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { DataTableShell } from "../../components/shared/DataTableShell";
-import { EmptyState } from "../../components/shared/EmptyState";
-import { PageHeader } from "../../components/shared/PageHeader";
-import { Badge } from "../../components/ui/badge";
+import {
+  DataTable,
+  EmptyState,
+  FilterBar,
+  KpiCard,
+  LoadingSkeleton,
+  SearchInput,
+  StatusBadge,
+} from "../../components/shared";
+import { ListPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { vendors } from "./vendorData";
+import { vendors, type Vendor } from "./vendorData";
 
 export function VendorListPage(): JSX.Element {
+  const warningCount = vendors.filter((vendor) => vendor.riskStatus === "Warning").length;
+
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Partners / Vendors"
-        title="Vendors"
-        subtitle="Vendor categories, expertise, documents, rate cards, tiers, status, risk, scorecards, and portal readiness."
-        action={
-          <Button type="button">
-            <Plus className="h-4 w-4" />
-            New vendor
-          </Button>
-        }
-      />
-      <section className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_140px_140px_140px_140px]">
-        <Input placeholder="Search vendors" aria-label="Search vendors" />
-        <Input placeholder="Category" aria-label="Category filter" />
-        <Input placeholder="Skill" aria-label="Skill filter" />
-        <Input placeholder="Tier" aria-label="Tier filter" />
-        <Button type="button" variant="secondary">
-          Risk
+    <ListPageTemplate
+      eyebrow="Partners / Vendors"
+      title="Vendors"
+      description="Manage partner vendors by expertise, compliance readiness, score, risk, and portal status."
+      primaryAction={
+        <Button type="button">
+          <Plus className="h-4 w-4" />
+          New vendor
         </Button>
-      </section>
-      <section className="grid gap-3 md:grid-cols-4">
-        {[
-          ["Active vendors", "18"],
-          ["Preferred", "7"],
-          ["Warnings", String(vendors.filter((vendor) => vendor.riskStatus === "Warning").length)],
-          ["Portal ready", "11"],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-2 text-lg font-semibold text-vc-navy">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-      <DataTableShell
+      }
+      kpiSection={
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Active vendors"
+            value={vendors.filter((vendor) => vendor.status === "Active").length}
+          />
+          <KpiCard
+            label="Preferred"
+            value={vendors.filter((vendor) => vendor.tier === "Preferred").length}
+            tone="success"
+          />
+          <KpiCard
+            label="Warnings"
+            value={warningCount}
+            tone={warningCount > 0 ? "warning" : "success"}
+          />
+          <KpiCard
+            label="Portal ready"
+            value={vendors.filter((vendor) => vendor.portal === "Enabled").length}
+          />
+        </section>
+      }
+      toolbar={
+        <FilterBar
+          actions={
+            <Button type="button" variant="secondary">
+              <Filter className="h-4 w-4" />
+              Filters
+            </Button>
+          }
+        >
+          <SearchInput placeholder="Search vendors" aria-label="Search vendors" />
+          <Input placeholder="Category" aria-label="Category filter" />
+          <Input placeholder="Skill" aria-label="Skill filter" />
+          <Input placeholder="Tier" aria-label="Tier filter" />
+        </FilterBar>
+      }
+      loadingState={<LoadingSkeleton variant="table" />}
+      emptyState={
+        <EmptyState
+          icon={FileCheck2}
+          title="No vendors match this view"
+          description="Clear filters or add a vendor with categories, documents, rate cards, and portal fields."
+          actionLabel="Add vendor"
+        />
+      }
+    >
+      <DataTable<Vendor>
         title="Vendor list"
         columns={[
-          { key: "name", label: "Vendor" },
-          { key: "categories", label: "Categories" },
-          { key: "expertise", label: "Expertise" },
-          { key: "tier", label: "Tier" },
-          { key: "riskStatus", label: "Risk" },
-          { key: "score", label: "Score" },
-        ]}
-        rows={vendors.map((vendor) => ({
-          id: vendor.id,
-          name: vendor.name,
-          categories: vendor.categories.join(", "),
-          expertise: vendor.expertise.join(", "),
-          tier: vendor.tier,
-          riskStatus: vendor.riskStatus,
-          score: String(vendor.score),
-        }))}
-      />
-      <div className="grid gap-3 md:grid-cols-2">
-        {vendors.map((vendor) => (
-          <Card key={vendor.id}>
-            <CardContent className="p-4">
+          {
+            id: "vendor",
+            header: "Vendor",
+            cell: (vendor) => (
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <Link
                     className="font-semibold text-vc-blue hover:text-vc-navy"
                     to={`/vendors/${vendor.id}`}
                   >
                     {vendor.name}
                   </Link>
-                  <p className="mt-1 text-sm text-muted-foreground">{vendor.location}</p>
+                  <p className="truncate text-xs text-muted-foreground">{vendor.location}</p>
                 </div>
-                <Badge variant={vendor.riskStatus === "Warning" ? "warning" : "success"}>
-                  {vendor.riskStatus}
-                </Badge>
+                <RowActionMenu detailPath={`/vendors/${vendor.id}`} />
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {vendor.expertise.map((skill) => (
-                  <Badge key={skill} variant="muted">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <EmptyState
-        icon={FileCheck2}
-        title="No vendors match this view"
-        description="Clear filters or add a vendor with categories, documents, rate cards, and portal fields."
-        actionLabel="Add vendor"
+            ),
+          },
+          {
+            id: "categories",
+            header: "Categories",
+            cell: (vendor) => vendor.categories.join(", "),
+          },
+          { id: "expertise", header: "Expertise", cell: (vendor) => vendor.expertise.join(", ") },
+          { id: "tier", header: "Tier", cell: (vendor) => vendor.tier },
+          {
+            id: "risk",
+            header: "Risk",
+            cell: (vendor) => (
+              <StatusBadge tone={vendor.riskStatus === "Warning" ? "warning" : "success"}>
+                {vendor.riskStatus}
+              </StatusBadge>
+            ),
+          },
+          { id: "score", header: "Score", cell: (vendor) => vendor.score },
+          { id: "portal", header: "Portal", cell: (vendor) => vendor.portal },
+        ]}
+        rows={vendors}
+        getRowId={(vendor) => vendor.id}
       />
-    </div>
+    </ListPageTemplate>
+  );
+}
+
+function RowActionMenu({ detailPath }: { detailPath: string }): JSX.Element {
+  return (
+    <details className="relative shrink-0">
+      <summary className="cursor-pointer list-none rounded-control px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted">
+        Actions
+      </summary>
+      <div className="absolute right-0 z-10 mt-2 w-36 rounded-card border border-border bg-card p-1 shadow-floating">
+        <Link className="block rounded-control px-3 py-2 text-sm hover:bg-muted" to={detailPath}>
+          Open detail
+        </Link>
+        <button
+          className="block w-full rounded-control px-3 py-2 text-left text-sm hover:bg-muted"
+          type="button"
+        >
+          Edit
+        </button>
+      </div>
+    </details>
   );
 }

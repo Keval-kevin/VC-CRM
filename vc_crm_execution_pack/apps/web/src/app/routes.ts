@@ -150,11 +150,15 @@ const implementedRoutePaths = new Set([
   "/activities",
   "/tasks",
   "/vendors",
+  "/vendor-scorecards",
   "/candidates",
   "/requirements",
   "/submissions",
   "/interviews",
   "/placements",
+  "/reports/sales",
+  "/reports/delivery",
+  "/reports/finance",
 ]);
 
 export const placeholderRoutes = [

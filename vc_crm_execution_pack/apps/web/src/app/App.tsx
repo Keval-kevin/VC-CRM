@@ -29,9 +29,15 @@ import { ProposalListPage } from "../modules/proposals/ProposalListPage";
 import { RequirementDetailPage } from "../modules/requirements/RequirementDetailPage";
 import { RequirementListPage } from "../modules/requirements/RequirementListPage";
 import { SubmissionListPage } from "../modules/requirements/SubmissionListPage";
+import {
+  DeliveryReportsPage,
+  FinanceReportsPage,
+  SalesReportsPage,
+} from "../modules/reports/ReportPages";
 import { ActivityListPage } from "../modules/activities/ActivityListPage";
 import { VendorDetailPage } from "../modules/vendors/VendorDetailPage";
 import { VendorListPage } from "../modules/vendors/VendorListPage";
+import { VendorScorecardsPage } from "../modules/vendors/VendorScorecardsPage";
 import { PlaceholderPage } from "../modules/placeholders/PlaceholderPage";
 import { HealthPage } from "./HealthPage";
 import { placeholderRoutes } from "./routes";
@@ -68,6 +74,7 @@ export function App(): JSX.Element {
           <Route path="/tasks" element={<ActivityListPage />} />
           <Route path="/vendors" element={<VendorListPage />} />
           <Route path="/vendors/:vendorId" element={<VendorDetailPage />} />
+          <Route path="/vendor-scorecards" element={<VendorScorecardsPage />} />
           <Route path="/candidates" element={<CandidateListPage />} />
           <Route path="/candidates/:candidateId" element={<CandidateDetailPage />} />
           <Route path="/requirements" element={<RequirementListPage />} />
@@ -76,6 +83,9 @@ export function App(): JSX.Element {
           <Route path="/interviews" element={<InterviewListPage />} />
           <Route path="/placements" element={<PlacementListPage />} />
           <Route path="/placements/:placementId" element={<PlacementDetailPage />} />
+          <Route path="/reports/sales" element={<SalesReportsPage />} />
+          <Route path="/reports/delivery" element={<DeliveryReportsPage />} />
+          <Route path="/reports/finance" element={<FinanceReportsPage />} />
           {placeholderRoutes.map((route) => (
             <Route key={route.path} path={route.path} element={<PlaceholderPage route={route} />} />
           ))}
