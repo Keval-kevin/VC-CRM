@@ -49,7 +49,7 @@ export function AppShell(): JSX.Element {
     <div className="min-h-screen bg-vc-bg text-foreground">
       <div
         className={cn(
-          "fixed inset-0 z-30 bg-slate-950/40 transition-opacity lg:hidden",
+          "fixed inset-0 z-30 bg-vc-navy/40 transition-opacity lg:hidden",
           isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         aria-hidden="true"

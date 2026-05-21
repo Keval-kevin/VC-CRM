@@ -38,7 +38,7 @@ export function DataTable<Row>({
   return (
     <SurfaceCard padding="none" className={cn("overflow-hidden", className)}>
       {(title !== undefined || description !== undefined || actions !== undefined) && (
-        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0">
             {title !== undefined && (
               <h2 className="text-base font-semibold text-vc-navy">{title}</h2>
@@ -47,21 +47,24 @@ export function DataTable<Row>({
               <p className="mt-1 text-sm text-muted-foreground">{description}</p>
             )}
           </div>
-          {actions !== undefined && <div className="shrink-0">{actions}</div>}
+          {actions !== undefined && <div className="w-full shrink-0 sm:w-auto">{actions}</div>}
         </div>
       )}
-      {toolbar !== undefined && <div className="border-b border-border p-4">{toolbar}</div>}
+      {toolbar !== undefined && <div className="border-b border-border p-4 sm:p-5">{toolbar}</div>}
       {rows.length === 0 && emptyState !== undefined ? (
         <div className="p-4">{emptyState}</div>
       ) : (
         <div className="max-w-full overflow-x-auto">
           <table className="w-full min-w-[620px] border-collapse text-left text-sm sm:min-w-[680px]">
-            <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="sticky top-0 z-[1] bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 {columns.map((column) => (
                   <th
                     key={column.id}
-                    className={cn("whitespace-nowrap px-3 py-3 font-semibold sm:px-4", column.className)}
+                    className={cn(
+                      "whitespace-nowrap px-3 py-3 font-semibold sm:px-4",
+                      column.className,
+                    )}
                   >
                     {column.header}
                   </th>
@@ -82,7 +85,7 @@ export function DataTable<Row>({
                     <td
                       key={column.id}
                       className={cn(
-                        "max-w-[18rem] break-words px-3 py-3 text-foreground sm:px-4",
+                        "max-w-[18rem] break-words px-3 py-3 align-middle text-foreground sm:px-4",
                         column.className,
                       )}
                     >

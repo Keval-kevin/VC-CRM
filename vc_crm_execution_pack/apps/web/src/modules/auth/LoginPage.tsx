@@ -16,22 +16,22 @@ export function LoginPage(): JSX.Element {
           <h1 className="mt-5 max-w-2xl text-4xl font-bold leading-tight">
             Sales, delivery, vendors, and finance in one operating view.
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-blue-100">
+          <p className="mt-4 max-w-xl text-base leading-7 text-vc-light">
             Secure tenant-aware workspace foundation with role-based navigation, audit-ready
             controls, and responsive layouts.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {["Pipeline", "Delivery", "Finance"].map((label) => (
-            <div key={label} className="rounded-lg border border-white/20 bg-white/10 p-4">
+            <div key={label} className="rounded-card border border-white/20 bg-white/10 p-4">
               <p className="text-sm font-semibold">{label}</p>
-              <p className="mt-1 text-xs text-blue-100">Ready shell</p>
+              <p className="mt-1 text-xs text-vc-light">Ready shell</p>
             </div>
           ))}
         </div>
       </section>
       <section className="flex items-center justify-center">
-        <Card className="w-full max-w-md shadow-soft">
+        <Card className="w-full max-w-md">
           <CardContent className="p-6">
             <div className="mb-6 flex items-center justify-between gap-3">
               <div>
@@ -63,7 +63,7 @@ export function LoginPage(): JSX.Element {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
-            <div className="mt-5 rounded-lg bg-muted p-3 text-sm leading-6 text-muted-foreground">
+            <div className="mt-5 rounded-card border border-border bg-muted p-3 text-sm leading-6 text-muted-foreground">
               Login UI only. Auth wiring will connect to the typed API client in a later frontend
               integration batch.
             </div>

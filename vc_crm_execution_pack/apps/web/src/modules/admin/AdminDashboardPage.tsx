@@ -31,7 +31,7 @@ export function AdminDashboardPage(): JSX.Element {
                   <p className="text-sm text-muted-foreground">{card.label}</p>
                   <p className="mt-2 text-2xl font-bold text-vc-navy">{card.value}</p>
                 </div>
-                <div className="grid h-10 w-10 place-items-center rounded-md bg-accent text-vc-blue">
+                <div className="grid h-10 w-10 place-items-center rounded-control bg-accent text-vc-blue ring-1 ring-inset ring-vc-blue/10">
                   <Icon className="h-5 w-5" />
                 </div>
               </CardContent>

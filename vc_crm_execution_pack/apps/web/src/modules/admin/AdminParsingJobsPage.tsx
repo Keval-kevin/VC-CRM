@@ -62,7 +62,7 @@ export function AdminParsingJobsPage(): JSX.Element {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           {["Queue", "Review", "Approve or reject"].map((step) => (
-            <div key={step} className="rounded-md border border-border bg-white p-4">
+            <div key={step} className="rounded-card border border-border bg-card p-4 shadow-flat">
               <p className="text-sm font-semibold text-vc-navy">{step}</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Tenant-scoped job data, audit log coverage, and save protection are enforced by the
@@ -70,12 +70,12 @@ export function AdminParsingJobsPage(): JSX.Element {
               </p>
             </div>
           ))}
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 md:col-span-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+          <div className="rounded-card border border-vc-warning/25 bg-card p-4 shadow-flat md:col-span-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-vc-warning">
               <AlertTriangle className="h-4 w-4" />
               Vendor website intelligence placeholder
             </div>
-            <p className="mt-2 text-sm text-amber-800">
+            <p className="mt-2 text-sm text-muted-foreground">
               Website enrichment is represented as a job type now; real crawling and AI analysis
               stay disabled until provider keys and approvals are configured.
             </p>

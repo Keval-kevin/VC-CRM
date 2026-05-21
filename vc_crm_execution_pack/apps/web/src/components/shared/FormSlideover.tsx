@@ -33,7 +33,7 @@ export function FormSlideover({
     >
       <div
         className={cn(
-          "absolute inset-0 bg-slate-950/40 transition-opacity",
+          "absolute inset-0 bg-vc-navy/40 transition-opacity",
           isOpen ? "opacity-100" : "opacity-0",
         )}
         onClick={onClose}

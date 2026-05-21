@@ -69,7 +69,6 @@ select:focus-visible {
 }
 
 ::selection {
-  background: #bfdbfe;
+  background: rgb(37 99 235 / 0.18);
   color: var(--navy);
 }
-

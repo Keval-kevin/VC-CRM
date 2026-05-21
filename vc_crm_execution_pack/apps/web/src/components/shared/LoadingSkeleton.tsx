@@ -12,8 +12,8 @@ export function LoadingSkeleton({
   if (variant === "table") {
     return (
       <div className={cn("grid gap-3", className)} aria-label="Loading">
-        <div className="h-12 animate-pulse rounded-card bg-muted" />
-        <div className="h-72 animate-pulse rounded-card bg-muted" />
+        <div className="h-12 animate-pulse rounded-card border border-border bg-card shadow-card" />
+        <div className="h-72 animate-pulse rounded-card border border-border bg-card shadow-card" />
       </div>
     );
   }
@@ -25,7 +25,7 @@ export function LoadingSkeleton({
         aria-label="Loading"
       >
         {["card-1", "card-2", "card-3", "card-4"].map((item) => (
-          <div key={item} className="h-28 animate-pulse rounded-card bg-muted" />
+          <div key={item} className="h-28 animate-pulse rounded-card border border-border bg-card shadow-card" />
         ))}
       </div>
     );
@@ -33,13 +33,13 @@ export function LoadingSkeleton({
 
   return (
     <div className={cn("grid gap-3", className)} aria-label="Loading">
-      <div className="h-24 animate-pulse rounded-card bg-muted" />
+      <div className="h-24 animate-pulse rounded-card border border-border bg-card shadow-card" />
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="h-28 animate-pulse rounded-card bg-muted" />
-        <div className="h-28 animate-pulse rounded-card bg-muted" />
-        <div className="h-28 animate-pulse rounded-card bg-muted" />
+        <div className="h-28 animate-pulse rounded-card border border-border bg-card shadow-card" />
+        <div className="h-28 animate-pulse rounded-card border border-border bg-card shadow-card" />
+        <div className="h-28 animate-pulse rounded-card border border-border bg-card shadow-card" />
       </div>
-      <div className="h-56 animate-pulse rounded-card bg-muted" />
+      <div className="h-56 animate-pulse rounded-card border border-border bg-card shadow-card" />
     </div>
   );
 }

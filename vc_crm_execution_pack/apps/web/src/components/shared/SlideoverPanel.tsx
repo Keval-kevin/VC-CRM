@@ -27,7 +27,7 @@ export function SlideoverPanel({
     >
       <div
         className={cn(
-          "absolute inset-0 bg-slate-950/40 transition-opacity",
+          "absolute inset-0 bg-vc-navy/40 transition-opacity",
           isOpen ? "opacity-100" : "opacity-0",
         )}
         onClick={onClose}
@@ -35,7 +35,7 @@ export function SlideoverPanel({
       <aside
         role="complementary"
         className={cn(
-          "absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-card shadow-soft transition-transform",
+          "absolute right-0 top-0 flex h-full w-full max-w-full flex-col bg-card shadow-modal transition-transform sm:max-w-xl sm:rounded-l-card",
           isOpen ? "translate-x-0" : "translate-x-full",
         )}
         aria-label={title}
@@ -55,8 +55,8 @@ export function SlideoverPanel({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <section className="rounded-lg border border-border p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+          <section className="rounded-card border border-border bg-card p-4 shadow-flat">
             <h3 className="text-sm font-semibold text-foreground">Record basics</h3>
             <div className="mt-3 grid gap-3">
               <Input placeholder="Record name" />
@@ -64,7 +64,7 @@ export function SlideoverPanel({
               <Input placeholder="Priority" />
             </div>
           </section>
-          <section className="rounded-lg border border-border p-4">
+          <section className="rounded-card border border-border bg-card p-4 shadow-flat">
             <h3 className="text-sm font-semibold text-foreground">Workflow context</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               This panel establishes the create/edit pattern. Module-specific validated forms will

@@ -31,11 +31,11 @@ export function KpiCard({
       {Icon !== undefined && (
         <div
           className={cn(
-            "grid h-10 w-10 shrink-0 place-items-center rounded-control bg-accent text-vc-blue",
-            tone === "success" && "bg-emerald-50 text-vc-success",
-            tone === "warning" && "bg-amber-50 text-vc-warning",
-            tone === "danger" && "bg-red-50 text-vc-danger",
-            tone === "info" && "bg-sky-50 text-vc-info",
+            "grid h-10 w-10 shrink-0 place-items-center rounded-control bg-accent text-vc-blue ring-1 ring-inset ring-vc-blue/10",
+            tone === "success" && "bg-card text-vc-success ring-vc-success/20",
+            tone === "warning" && "bg-card text-vc-warning ring-vc-warning/25",
+            tone === "danger" && "bg-card text-vc-danger ring-vc-danger/20",
+            tone === "info" && "bg-card text-vc-info ring-vc-info/20",
           )}
         >
           <Icon className="h-5 w-5" />

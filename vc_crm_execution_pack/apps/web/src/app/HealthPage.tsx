@@ -2,7 +2,7 @@ export function HealthPage(): JSX.Element {
   return (
     <main className="grid min-h-screen place-items-center bg-vc-bg p-4">
       <section
-        className="w-full max-w-xl rounded-lg border border-border bg-card p-6 shadow-sm"
+        className="w-full max-w-xl rounded-card border border-border bg-card p-6 shadow-card"
         aria-labelledby="health-title"
       >
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-vc-blue">

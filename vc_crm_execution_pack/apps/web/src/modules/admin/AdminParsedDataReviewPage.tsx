@@ -64,7 +64,7 @@ export function AdminParsedDataReviewPage(): JSX.Element {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-4">
           {["Raw parse", "Field review", "Approval", "Save to CRM"].map((step) => (
-            <div key={step} className="rounded-md border border-border bg-white p-4">
+            <div key={step} className="rounded-card border border-border bg-card p-4 shadow-flat">
               <p className="text-sm font-semibold text-vc-navy">{step}</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Tenant isolation, audit logging, and retry state are preserved across the job.

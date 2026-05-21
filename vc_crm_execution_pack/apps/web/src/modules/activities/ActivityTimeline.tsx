@@ -15,14 +15,14 @@ export function ActivityTimeline(): JSX.Element {
       </CardHeader>
       <CardContent className="space-y-3">
         {activities.map((activity) => (
-          <div key={activity.id} className="rounded-lg border border-border p-3">
+          <div key={activity.id} className="rounded-card border border-border bg-card p-3 shadow-flat">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Badge variant={activity.isOverdue ? "danger" : "muted"}>{activity.type}</Badge>
               <span className="text-xs text-muted-foreground">{activity.due}</span>
             </div>
             <p className="mt-2 font-medium text-vc-navy">{activity.title}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {activity.linkedTo} · {activity.owner}
+              {activity.linkedTo} - {activity.owner}
             </p>
           </div>
         ))}

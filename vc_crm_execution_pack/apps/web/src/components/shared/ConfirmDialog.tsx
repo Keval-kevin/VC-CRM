@@ -31,7 +31,7 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-vc-navy/40 p-4">
       <section
         role="dialog"
         aria-modal="true"
@@ -44,8 +44,8 @@ export function ConfirmDialog({
         <div className="flex gap-3">
           <div
             className={cn(
-              "grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-vc-blue",
-              tone === "destructive" && "bg-red-50 text-vc-danger",
+              "grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-vc-blue ring-1 ring-inset ring-vc-blue/10",
+              tone === "destructive" && "bg-card text-vc-danger ring-vc-danger/20",
             )}
           >
             <AlertTriangle className="h-5 w-5" />
