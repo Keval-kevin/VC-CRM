@@ -15,6 +15,8 @@ import { ContactListPage } from "../modules/contacts/ContactListPage";
 import { DashboardPage } from "../modules/dashboard/DashboardPage";
 import { LeadDetailPage } from "../modules/leads/LeadDetailPage";
 import { LeadListPage } from "../modules/leads/LeadListPage";
+import { OpportunityDetailPage } from "../modules/opportunities/OpportunityDetailPage";
+import { OpportunityListPage } from "../modules/opportunities/OpportunityListPage";
 import { PlaceholderPage } from "../modules/placeholders/PlaceholderPage";
 import { HealthPage } from "./HealthPage";
 import { placeholderRoutes } from "./routes";
@@ -41,6 +43,8 @@ export function App(): JSX.Element {
           <Route path="/contacts" element={<ContactListPage />} />
           <Route path="/leads" element={<LeadListPage />} />
           <Route path="/leads/:leadId" element={<LeadDetailPage />} />
+          <Route path="/opportunities" element={<OpportunityListPage />} />
+          <Route path="/opportunities/:opportunityId" element={<OpportunityDetailPage />} />
           {placeholderRoutes.map((route) => (
             <Route key={route.path} path={route.path} element={<PlaceholderPage route={route} />} />
           ))}

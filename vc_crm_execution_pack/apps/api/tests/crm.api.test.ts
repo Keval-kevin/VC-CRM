@@ -20,6 +20,11 @@ beforeEach((): void => {
 });
 
 afterAll(async (): Promise<void> => {
+  await prisma.opportunity.deleteMany({
+    where: {
+      OR: [{ name: { contains: "CRM Test" } }, { account: { name: { contains: "CRM Test" } } }],
+    },
+  });
   await prisma.lead.deleteMany({
     where: { email: { endsWith: `@${testDomain}` } },
   });
@@ -45,6 +50,109 @@ afterAll(async (): Promise<void> => {
 });
 
 describe("crm API", (): void => {
+  it("converts leads and supports opportunity list, detail, pipeline, stage movement, and delete", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const leadResponse = await request(app)
+      .post("/api/v1/leads")
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        firstName: "CRM",
+        lastName: "Opportunity",
+        email: `opportunity-lead-${randomUUID()}@${testDomain}`,
+        company: `CRM Test Opportunity Company ${randomUUID()}`,
+        source: "Website",
+        serviceInterest: "Dedicated team",
+      })
+      .expect(201);
+    const leadId = String(getData(leadResponse).id);
+
+    const convertResponse = await request(app)
+      .post(`/api/v1/leads/${leadId}/convert`)
+      .set("authorization", `Bearer ${token}`)
+      .send({
+        valueCents: 5_000_000,
+        currency: "INR",
+        expectedCloseDate: new Date().toISOString(),
+      })
+      .expect(201);
+    const opportunity = getData(convertResponse);
+    const opportunityId = String(opportunity.id);
+
+    expect(opportunity).toMatchObject({
+      leadId,
+      stage: "QUALIFICATION",
+      weightedForecastCents: 500_000,
+    });
+
+    await request(app)
+      .post(`/api/v1/leads/${leadId}/convert`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ valueCents: 1 })
+      .expect(409);
+
+    await request(app)
+      .get("/api/v1/opportunities")
+      .query({ search: "CRM Test", stage: "QUALIFICATION" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get("/api/v1/opportunities/pipeline")
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get(`/api/v1/opportunities/${opportunityId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .patch(`/api/v1/opportunities/${opportunityId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ stage: "PROPOSAL" })
+      .expect(400);
+    const movedResponse = await request(app)
+      .patch(`/api/v1/opportunities/${opportunityId}`)
+      .set("authorization", `Bearer ${token}`)
+      .send({ stage: "DISCOVERY" })
+      .expect(200);
+
+    expect(getData(movedResponse)).toMatchObject({ stage: "DISCOVERY", probability: 20 });
+
+    await request(app)
+      .delete(`/api/v1/opportunities/${opportunityId}`)
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+  });
+
+  it("enforces opportunity RBAC and tenant isolation", async (): Promise<void> => {
+    const token = await login(await createUserWithoutCrmPermissions());
+
+    await request(app)
+      .get("/api/v1/opportunities")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+
+    const tenantToken = await login("tenant.admin@virtualcoders.local");
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        name: `CRM Test Opportunity Other ${randomUUID()}`,
+        slug: `opportunity-test-${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      },
+      select: { id: true },
+    });
+    const otherOpportunity = await prisma.opportunity.create({
+      data: {
+        tenantId: otherTenant.id,
+        name: `CRM Test Other Opportunity ${randomUUID()}`,
+        stage: "QUALIFICATION",
+      },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get(`/api/v1/opportunities/${otherOpportunity.id}`)
+      .set("authorization", `Bearer ${tenantToken}`)
+      .expect(404);
+  });
+
   it("supports lead CRUD, lifecycle, filters, scoring, timeline, and audit logs", async (): Promise<void> => {
     const token = await login("tenant.admin@virtualcoders.local");
     const tenantAdmin = await prisma.user.findUniqueOrThrow({

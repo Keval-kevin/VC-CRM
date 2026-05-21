@@ -39,15 +39,17 @@ model Tenant {
   updatedById String?      @db.Uuid
   deletedById String?      @db.Uuid
 
-  users      User[]
-  roles      Role[]
-  auditLogs  AuditLog[]
-  settings   TenantSettings?
-  aiSettings AIProviderSetting[]
-  accounts   Account[]
-  contacts   Contact[]
-  leads      Lead[]
-  activities ActivityTimelineItem[]
+  users                   User[]
+  roles                   Role[]
+  auditLogs               AuditLog[]
+  settings                TenantSettings?
+  aiSettings              AIProviderSetting[]
+  accounts                Account[]
+  contacts                Contact[]
+  leads                   Lead[]
+  opportunities           Opportunity[]
+  opportunityStageHistory OpportunityStageHistory[]
+  activities              ActivityTimelineItem[]
 
   @@index([status])
   @@index([createdAt])
@@ -75,6 +77,18 @@ enum LeadStatus {
   NURTURING
   CONVERTED
   DISQUALIFIED
+  LOST
+}
+
+enum OpportunityStage {
+  QUALIFICATION
+  DISCOVERY
+  REQUIREMENT
+  PROPOSAL
+  NEGOTIATION
+  VERBAL_COMMIT
+  CONTRACTING
+  WON
   LOST
 }
 
@@ -111,8 +125,9 @@ model Lead {
   updatedById          String?    @db.Uuid
   deletedById          String?    @db.Uuid
 
-  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  activities ActivityTimelineItem[]
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  activities    ActivityTimelineItem[]
+  opportunities Opportunity[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -124,6 +139,75 @@ model Lead {
   @@index([tenantId, email])
   @@index([tenantId, phone])
   @@index([tenantId, companyDomain])
+  @@index([deletedAt])
+}
+
+model Opportunity {
+  id                    String           @id @default(uuid()) @db.Uuid
+  tenantId              String           @db.Uuid
+  accountId             String?          @db.Uuid
+  primaryContactId      String?          @db.Uuid
+  leadId                String?          @db.Uuid
+  name                  String
+  stage                 OpportunityStage @default(QUALIFICATION)
+  probability           Int              @default(10)
+  valueCents            Int              @default(0)
+  currency              String           @default("INR")
+  expectedCloseDate     DateTime?
+  weightedForecastCents Int              @default(0)
+  ownerId               String?          @db.Uuid
+  stageChangedAt        DateTime         @default(now())
+  wonAt                 DateTime?
+  lostAt                DateTime?
+  lostReason            String?
+  notes                 String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  deletedAt             DateTime?
+  createdById           String?          @db.Uuid
+  updatedById           String?          @db.Uuid
+  deletedById           String?          @db.Uuid
+
+  tenant         Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account        Account?                  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  primaryContact Contact?                  @relation(fields: [primaryContactId], references: [id], onDelete: SetNull)
+  lead           Lead?                     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  activities     ActivityTimelineItem[]
+  stageHistory   OpportunityStageHistory[]
+
+  @@index([tenantId])
+  @@index([tenantId, accountId])
+  @@index([tenantId, primaryContactId])
+  @@index([tenantId, leadId])
+  @@index([tenantId, ownerId])
+  @@index([tenantId, stage])
+  @@index([tenantId, expectedCloseDate])
+  @@index([tenantId, stageChangedAt])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, updatedAt])
+  @@index([deletedAt])
+}
+
+model OpportunityStageHistory {
+  id            String            @id @default(uuid()) @db.Uuid
+  tenantId      String            @db.Uuid
+  opportunityId String            @db.Uuid
+  fromStage     OpportunityStage?
+  toStage       OpportunityStage
+  changedAt     DateTime          @default(now())
+  changedById   String?           @db.Uuid
+  note          String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, opportunityId])
+  @@index([tenantId, toStage])
+  @@index([tenantId, changedAt])
   @@index([deletedAt])
 }
 
@@ -147,9 +231,10 @@ model Account {
   updatedById String?       @db.Uuid
   deletedById String?       @db.Uuid
 
-  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  contacts   Contact[]
-  activities ActivityTimelineItem[]
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contacts      Contact[]
+  opportunities Opportunity[]
+  activities    ActivityTimelineItem[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -183,9 +268,10 @@ model Contact {
   updatedById    String?       @db.Uuid
   deletedById    String?       @db.Uuid
 
-  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  account    Account?               @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  activities ActivityTimelineItem[]
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account       Account?               @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  opportunities Opportunity[]
+  activities    ActivityTimelineItem[]
 
   @@index([tenantId])
   @@index([tenantId, accountId])
@@ -199,31 +285,34 @@ model Contact {
 }
 
 model ActivityTimelineItem {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @db.Uuid
-  leadId      String?   @db.Uuid
-  accountId   String?   @db.Uuid
-  contactId   String?   @db.Uuid
-  type        String
-  title       String
-  description String?
-  occurredAt  DateTime  @default(now())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-  deletedById String?   @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @db.Uuid
+  leadId        String?   @db.Uuid
+  accountId     String?   @db.Uuid
+  contactId     String?   @db.Uuid
+  opportunityId String?   @db.Uuid
+  type          String
+  title         String
+  description   String?
+  occurredAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  createdById   String?   @db.Uuid
+  updatedById   String?   @db.Uuid
+  deletedById   String?   @db.Uuid
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  account     Account?     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([tenantId, leadId])
   @@index([tenantId, accountId])
   @@index([tenantId, contactId])
+  @@index([tenantId, opportunityId])
   @@index([tenantId, occurredAt])
   @@index([deletedAt])
 }

@@ -9,18 +9,25 @@ import {
   createAccountController,
   createContactController,
   createLeadController,
+  createOpportunityController,
+  convertLeadController,
   deleteAccountController,
   deleteContactController,
   deleteLeadController,
+  deleteOpportunityController,
   getAccountController,
   getContactController,
   getLeadController,
+  getOpportunityController,
   listAccountsController,
   listContactsController,
   listLeadsController,
+  listOpportunitiesController,
+  listOpportunityPipelineController,
   updateAccountController,
   updateContactController,
   updateLeadController,
+  updateOpportunityController,
 } from "./crm.controller.js";
 
 export const crmRouter = Router();
@@ -51,6 +58,42 @@ crmRouter.delete(
   "/leads/:leadId",
   requirePermission(permissions.leadsDelete),
   asyncHandler(deleteLeadController),
+);
+crmRouter.post(
+  "/leads/:leadId/convert",
+  requirePermission(permissions.opportunitiesCreate),
+  asyncHandler(convertLeadController),
+);
+
+crmRouter.get(
+  "/opportunities",
+  requirePermission(permissions.opportunitiesRead),
+  asyncHandler(listOpportunitiesController),
+);
+crmRouter.get(
+  "/opportunities/pipeline",
+  requirePermission(permissions.opportunitiesRead),
+  asyncHandler(listOpportunityPipelineController),
+);
+crmRouter.post(
+  "/opportunities",
+  requirePermission(permissions.opportunitiesCreate),
+  asyncHandler(createOpportunityController),
+);
+crmRouter.get(
+  "/opportunities/:opportunityId",
+  requirePermission(permissions.opportunitiesRead),
+  asyncHandler(getOpportunityController),
+);
+crmRouter.patch(
+  "/opportunities/:opportunityId",
+  requirePermission(permissions.opportunitiesUpdate),
+  asyncHandler(updateOpportunityController),
+);
+crmRouter.delete(
+  "/opportunities/:opportunityId",
+  requirePermission(permissions.opportunitiesDelete),
+  asyncHandler(deleteOpportunityController),
 );
 
 crmRouter.get(

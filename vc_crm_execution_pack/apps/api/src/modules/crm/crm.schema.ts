@@ -1,4 +1,4 @@
-import { AccountStatus, ContactStatus, LeadStatus } from "@prisma/client";
+import { AccountStatus, ContactStatus, LeadStatus, OpportunityStage } from "@prisma/client";
 import { z } from "zod";
 
 export const paginationSchema = z.object({
@@ -25,6 +25,16 @@ export const leadListQuerySchema = paginationSchema.extend({
 export const contactListQuerySchema = paginationSchema.extend({
   accountId: z.string().uuid().optional(),
   status: z.enum(ContactStatus).optional(),
+});
+
+export const opportunityListQuerySchema = paginationSchema.extend({
+  accountId: z.string().uuid().optional(),
+  ownerId: z.string().uuid().optional(),
+  stage: z.enum(OpportunityStage).optional(),
+  currency: z.string().trim().length(3).optional(),
+  expectedCloseFrom: z.coerce.date().optional(),
+  expectedCloseTo: z.coerce.date().optional(),
+  stagnantOnly: z.coerce.boolean().optional(),
 });
 
 export const createAccountSchema = z
@@ -99,12 +109,57 @@ export const createContactSchema = z
 
 export const updateContactSchema = createContactSchema.partial().strict();
 
+export const createOpportunitySchema = z
+  .object({
+    accountId: z.string().uuid().optional(),
+    primaryContactId: z.string().uuid().optional(),
+    leadId: z.string().uuid().optional(),
+    name: z.string().trim().min(2).max(180),
+    stage: z.enum(OpportunityStage).default(OpportunityStage.QUALIFICATION),
+    probability: z.coerce.number().int().min(0).max(100).optional(),
+    valueCents: z.coerce.number().int().min(0).default(0),
+    currency: z
+      .string()
+      .trim()
+      .length(3)
+      .transform((value) => value.toUpperCase())
+      .default("INR"),
+    expectedCloseDate: z.coerce.date().optional(),
+    ownerId: z.string().uuid().optional(),
+    lostReason: z.string().trim().max(500).optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
+export const updateOpportunitySchema = createOpportunitySchema.partial().strict();
+
+export const convertLeadSchema = z
+  .object({
+    accountName: z.string().trim().min(2).max(160).optional(),
+    opportunityName: z.string().trim().min(2).max(180).optional(),
+    valueCents: z.coerce.number().int().min(0).default(0),
+    currency: z
+      .string()
+      .trim()
+      .length(3)
+      .transform((value) => value.toUpperCase())
+      .default("INR"),
+    expectedCloseDate: z.coerce.date().optional(),
+    ownerId: z.string().uuid().optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
 export type AccountListQuery = z.infer<typeof accountListQuerySchema>;
 export type ContactListQuery = z.infer<typeof contactListQuerySchema>;
 export type LeadListQuery = z.infer<typeof leadListQuerySchema>;
+export type OpportunityListQuery = z.infer<typeof opportunityListQuerySchema>;
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
 export type CreateContactInput = z.infer<typeof createContactSchema>;
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
+export type CreateOpportunityInput = z.infer<typeof createOpportunitySchema>;
+export type ConvertLeadInput = z.infer<typeof convertLeadSchema>;
 export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
 export type UpdateContactInput = z.infer<typeof updateContactSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
+export type UpdateOpportunityInput = z.infer<typeof updateOpportunitySchema>;

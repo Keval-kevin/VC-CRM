@@ -127,6 +127,7 @@ export const placeholderRoutes = routeGroups.flatMap((group) =>
         "/leads",
         "/accounts",
         "/contacts",
+        "/opportunities",
       ].includes(item.path),
   ),
 );

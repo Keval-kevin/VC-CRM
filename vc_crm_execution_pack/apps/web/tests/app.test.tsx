@@ -30,10 +30,26 @@ describe("App", (): void => {
   });
 
   it("renders placeholder module pages with a table shell", (): void => {
+    renderApp("/proposals");
+
+    expect(screen.getByRole("heading", { name: "Proposals" })).toBeInTheDocument();
+    expect(screen.getByText("Proposals list shell")).toBeInTheDocument();
+  });
+
+  it("renders opportunity pipeline and detail layouts", (): void => {
     renderApp("/opportunities");
 
     expect(screen.getByRole("heading", { name: "Opportunities" })).toBeInTheDocument();
-    expect(screen.getByText("Opportunities list shell")).toBeInTheDocument();
+    expect(screen.getByText("Kanban pipeline")).toBeInTheDocument();
+    expect(screen.getByText("Opportunity list")).toBeInTheDocument();
+    expect(screen.getByText("Weighted forecast")).toBeInTheDocument();
+
+    renderApp("/opportunities/opp-1");
+    expect(
+      screen.getByRole("heading", { name: "Acme Cloud - Dedicated React squad" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Stage movement").length).toBeGreaterThan(0);
+    expect(screen.getByText("Activity feed placeholder")).toBeInTheDocument();
   });
 
   it("renders accounts list and account detail layouts", (): void => {

@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { AccountStatus, LeadStatus, OpportunityStage, Prisma } from "@prisma/client";
 
 import { AppError } from "../../shared/errors/app-error.js";
 import { prisma } from "../../shared/prisma/client.js";
@@ -8,10 +8,14 @@ import type {
   CreateAccountInput,
   CreateContactInput,
   CreateLeadInput,
+  CreateOpportunityInput,
+  ConvertLeadInput,
   LeadListQuery,
+  OpportunityListQuery,
   UpdateAccountInput,
   UpdateContactInput,
   UpdateLeadInput,
+  UpdateOpportunityInput,
 } from "./crm.schema.js";
 import type { CrmActor, CrmRequestContext, PaginatedResult } from "./crm.types.js";
 
@@ -134,6 +138,470 @@ const leadSelect = {
     take: 10,
   },
 } satisfies Prisma.LeadSelect;
+
+const opportunitySelect = {
+  id: true,
+  tenantId: true,
+  accountId: true,
+  primaryContactId: true,
+  leadId: true,
+  name: true,
+  stage: true,
+  probability: true,
+  valueCents: true,
+  currency: true,
+  expectedCloseDate: true,
+  weightedForecastCents: true,
+  ownerId: true,
+  stageChangedAt: true,
+  wonAt: true,
+  lostAt: true,
+  lostReason: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+  account: {
+    select: {
+      id: true,
+      name: true,
+      domain: true,
+    },
+  },
+  primaryContact: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
+  },
+  lead: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      source: true,
+    },
+  },
+  activities: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      description: true,
+      occurredAt: true,
+    },
+    orderBy: { occurredAt: Prisma.SortOrder.desc },
+    take: 10,
+  },
+  stageHistory: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      fromStage: true,
+      toStage: true,
+      changedAt: true,
+      note: true,
+    },
+    orderBy: { changedAt: Prisma.SortOrder.desc },
+    take: 10,
+  },
+} satisfies Prisma.OpportunitySelect;
+
+export async function listOpportunities(
+  actor: CrmActor,
+  query: OpportunityListQuery,
+): Promise<PaginatedResult<unknown>> {
+  const tenantId = requireTenant(actor);
+  const stagnantBefore = getStagnantCutoff();
+  const where: Prisma.OpportunityWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(query.accountId === undefined ? {} : { accountId: query.accountId }),
+    ...(query.ownerId === undefined ? {} : { ownerId: query.ownerId }),
+    ...(query.stage === undefined ? {} : { stage: query.stage }),
+    ...(query.currency === undefined ? {} : { currency: query.currency.toUpperCase() }),
+    ...(query.expectedCloseFrom === undefined && query.expectedCloseTo === undefined
+      ? {}
+      : {
+          expectedCloseDate: {
+            ...(query.expectedCloseFrom === undefined ? {} : { gte: query.expectedCloseFrom }),
+            ...(query.expectedCloseTo === undefined ? {} : { lte: query.expectedCloseTo }),
+          },
+        }),
+    ...(query.stagnantOnly === true
+      ? { stage: { notIn: terminalOpportunityStages }, stageChangedAt: { lt: stagnantBefore } }
+      : {}),
+    ...(query.search === undefined
+      ? {}
+      : {
+          OR: [
+            { name: { contains: query.search, mode: "insensitive" } },
+            { account: { name: { contains: query.search, mode: "insensitive" } } },
+          ],
+        }),
+  };
+  const [items, total] = await prisma.$transaction([
+    prisma.opportunity.findMany({
+      where,
+      orderBy: getOpportunityOrderBy(query),
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+      select: opportunitySelect,
+    }),
+    prisma.opportunity.count({ where }),
+  ]);
+
+  return toPaginatedResult(
+    items.map((item) => toOpportunityView(item)),
+    total,
+    query.page,
+    query.pageSize,
+  );
+}
+
+export async function listOpportunityPipeline(actor: CrmActor): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const opportunities = await prisma.opportunity.findMany({
+    where: { tenantId, deletedAt: null },
+    orderBy: [{ stage: Prisma.SortOrder.asc }, { expectedCloseDate: Prisma.SortOrder.asc }],
+    select: opportunitySelect,
+  });
+
+  return opportunityStages.map((stage) => {
+    const items = opportunities.filter((item) => item.stage === stage).map(toOpportunityView);
+    return {
+      stage,
+      probability: defaultStageProbability[stage],
+      count: items.length,
+      valueCents: items.reduce((sum, item) => sum + item.valueCents, 0),
+      weightedForecastCents: items.reduce((sum, item) => sum + item.weightedForecastCents, 0),
+      items,
+    };
+  });
+}
+
+export async function getOpportunity(actor: CrmActor, opportunityId: string): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const opportunity = await prisma.opportunity.findFirst({
+    where: { id: opportunityId, tenantId, deletedAt: null },
+    select: opportunitySelect,
+  });
+
+  if (opportunity === null) {
+    throw new AppError("NOT_FOUND", "Opportunity not found", 404);
+  }
+
+  return toOpportunityView(opportunity);
+}
+
+export async function createOpportunity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  input: CreateOpportunityInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertOpportunityRelationsBelongToTenant(tenantId, input);
+  await assertOpportunityOwnerBelongsToTenant(tenantId, input.ownerId);
+  const stage = input.stage ?? OpportunityStage.QUALIFICATION;
+  validateOpportunityStageInput(stage, input.lostReason);
+  const normalized = normalizeOpportunityFinancials({ ...input, stage });
+
+  const opportunity = await prisma.opportunity.create({
+    data: {
+      tenantId,
+      ...input,
+      stage,
+      ...normalized,
+      stageChangedAt: new Date(),
+      wonAt: stage === OpportunityStage.WON ? new Date() : undefined,
+      lostAt: stage === OpportunityStage.LOST ? new Date() : undefined,
+      createdById: actor.sub,
+      activities: {
+        create: {
+          tenantId,
+          type: "opportunity.created",
+          title: "Opportunity created",
+          description: `${input.name} entered the ${stage} stage.`,
+          createdById: actor.sub,
+        },
+      },
+      stageHistory: {
+        create: {
+          tenantId,
+          toStage: stage,
+          changedById: actor.sub,
+          note: "Opportunity created",
+        },
+      },
+    },
+    select: opportunitySelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: "opportunities.created",
+    entityType: "opportunity",
+    entityId: getRecordId(opportunity),
+    tenantId,
+    metadata: { stage, valueCents: input.valueCents },
+  });
+
+  return toOpportunityView(opportunity);
+}
+
+export async function convertLeadToOpportunity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  leadId: string,
+  input: ConvertLeadInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  await assertOpportunityOwnerBelongsToTenant(tenantId, input.ownerId);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const lead = await tx.lead.findFirst({
+      where: { id: leadId, tenantId, deletedAt: null },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        company: true,
+        website: true,
+        companyDomain: true,
+        country: true,
+        serviceInterest: true,
+        ownerId: true,
+        status: true,
+      },
+    });
+
+    if (lead === null) {
+      throw new AppError("NOT_FOUND", "Lead not found", 404);
+    }
+
+    if (lead.status === LeadStatus.CONVERTED) {
+      throw new AppError("CONFLICT", "Lead is already converted", 409);
+    }
+
+    const existingOpportunity = await tx.opportunity.findFirst({
+      where: { tenantId, leadId: lead.id, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (existingOpportunity !== null) {
+      throw new AppError("CONFLICT", "Lead is already converted", 409);
+    }
+
+    const accountName = input.accountName ?? lead.company ?? `${lead.firstName} ${lead.lastName}`;
+    const account = await tx.account.create({
+      data: {
+        tenantId,
+        name: accountName,
+        website: lead.website,
+        domain: normalizeDomain(lead.companyDomain ?? lead.website ?? undefined),
+        country: lead.country,
+        status: AccountStatus.PROSPECT,
+        ownerId: input.ownerId ?? lead.ownerId,
+        createdById: actor.sub,
+      },
+      select: { id: true, name: true },
+    });
+    const contact = await tx.contact.create({
+      data: {
+        tenantId,
+        accountId: account.id,
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        email: lead.email,
+        phone: lead.phone,
+        ownerId: input.ownerId ?? lead.ownerId,
+        createdById: actor.sub,
+      },
+      select: { id: true },
+    });
+    const opportunityName =
+      input.opportunityName ?? `${account.name} - ${lead.serviceInterest ?? "New opportunity"}`;
+    const normalized = normalizeOpportunityFinancials({
+      stage: OpportunityStage.QUALIFICATION,
+      valueCents: input.valueCents,
+      currency: input.currency,
+    });
+    const opportunity = await tx.opportunity.create({
+      data: {
+        tenantId,
+        accountId: account.id,
+        primaryContactId: contact.id,
+        leadId: lead.id,
+        name: opportunityName,
+        stage: OpportunityStage.QUALIFICATION,
+        ...normalized,
+        expectedCloseDate: input.expectedCloseDate,
+        ownerId: input.ownerId ?? lead.ownerId,
+        notes: input.notes,
+        createdById: actor.sub,
+        activities: {
+          create: {
+            tenantId,
+            leadId: lead.id,
+            accountId: account.id,
+            contactId: contact.id,
+            type: "opportunity.converted",
+            title: "Lead converted",
+            description: "Lead conversion created account, contact, and opportunity.",
+            createdById: actor.sub,
+          },
+        },
+        stageHistory: {
+          create: {
+            tenantId,
+            toStage: OpportunityStage.QUALIFICATION,
+            changedById: actor.sub,
+            note: "Converted from lead",
+          },
+        },
+      },
+      select: opportunitySelect,
+    });
+
+    await tx.lead.update({
+      where: { id: lead.id },
+      data: {
+        status: LeadStatus.CONVERTED,
+        updatedById: actor.sub,
+        activities: {
+          create: {
+            tenantId,
+            accountId: account.id,
+            contactId: contact.id,
+            opportunityId: opportunity.id,
+            type: "lead.converted",
+            title: "Lead converted",
+            description: `Converted to ${opportunityName}.`,
+            createdById: actor.sub,
+          },
+        },
+      },
+    });
+
+    return opportunity;
+  });
+
+  await createAuditLog(actor, context, {
+    action: "leads.converted",
+    entityType: "lead",
+    entityId: leadId,
+    tenantId,
+    metadata: { opportunityId: getRecordId(result) },
+  });
+  await createAuditLog(actor, context, {
+    action: "opportunities.created_from_lead",
+    entityType: "opportunity",
+    entityId: getRecordId(result),
+    tenantId,
+    metadata: { leadId },
+  });
+
+  return toOpportunityView(result);
+}
+
+export async function updateOpportunity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  opportunityId: string,
+  input: UpdateOpportunityInput,
+): Promise<unknown> {
+  const tenantId = requireTenant(actor);
+  const existing = await assertOpportunityExists(tenantId, opportunityId);
+  await assertOpportunityRelationsBelongToTenant(tenantId, input);
+  await assertOpportunityOwnerBelongsToTenant(tenantId, input.ownerId);
+  const nextStage = input.stage ?? existing.stage;
+  validateStageTransition(existing.stage, nextStage);
+  validateOpportunityStageInput(nextStage, input.lostReason ?? existing.lostReason ?? undefined);
+  const stageChanged = input.stage !== undefined && input.stage !== existing.stage;
+  const normalized = normalizeOpportunityFinancials({
+    stage: nextStage,
+    probability: input.probability ?? (stageChanged ? undefined : existing.probability),
+    valueCents: input.valueCents ?? existing.valueCents,
+    currency: input.currency ?? existing.currency,
+  });
+  const now = new Date();
+
+  const opportunity = await prisma.opportunity.update({
+    where: { id: opportunityId },
+    data: {
+      ...input,
+      ...normalized,
+      ...(stageChanged ? { stageChangedAt: now } : {}),
+      ...(nextStage === OpportunityStage.WON && existing.wonAt === null ? { wonAt: now } : {}),
+      ...(nextStage === OpportunityStage.LOST && existing.lostAt === null ? { lostAt: now } : {}),
+      updatedById: actor.sub,
+      activities: {
+        create: {
+          tenantId,
+          type: stageChanged ? "opportunity.stage_changed" : "opportunity.updated",
+          title: stageChanged ? "Opportunity stage changed" : "Opportunity updated",
+          description: stageChanged
+            ? `${existing.stage} moved to ${nextStage}.`
+            : "Opportunity fields were updated.",
+          createdById: actor.sub,
+        },
+      },
+      ...(stageChanged
+        ? {
+            stageHistory: {
+              create: {
+                tenantId,
+                fromStage: existing.stage,
+                toStage: nextStage,
+                changedById: actor.sub,
+                note: input.notes,
+              },
+            },
+          }
+        : {}),
+    },
+    select: opportunitySelect,
+  });
+
+  await createAuditLog(actor, context, {
+    action: stageChanged ? "opportunities.stage_changed" : "opportunities.updated",
+    entityType: "opportunity",
+    entityId: opportunityId,
+    tenantId,
+    metadata: input as Record<string, unknown>,
+  });
+
+  return toOpportunityView(opportunity);
+}
+
+export async function deleteOpportunity(
+  actor: CrmActor,
+  context: CrmRequestContext,
+  opportunityId: string,
+): Promise<{ deleted: true }> {
+  const tenantId = requireTenant(actor);
+  await assertOpportunityExists(tenantId, opportunityId);
+
+  await prisma.opportunity.update({
+    where: { id: opportunityId },
+    data: {
+      deletedAt: new Date(),
+      deletedById: actor.sub,
+    },
+  });
+
+  await createAuditLog(actor, context, {
+    action: "opportunities.deleted",
+    entityType: "opportunity",
+    entityId: opportunityId,
+    tenantId,
+  });
+
+  return { deleted: true };
+}
 
 export async function listLeads(
   actor: CrmActor,
@@ -636,6 +1104,117 @@ export async function deleteContact(
   return { deleted: true };
 }
 
+const opportunityStages = [
+  OpportunityStage.QUALIFICATION,
+  OpportunityStage.DISCOVERY,
+  OpportunityStage.REQUIREMENT,
+  OpportunityStage.PROPOSAL,
+  OpportunityStage.NEGOTIATION,
+  OpportunityStage.VERBAL_COMMIT,
+  OpportunityStage.CONTRACTING,
+  OpportunityStage.WON,
+  OpportunityStage.LOST,
+] as const;
+
+const terminalOpportunityStages: OpportunityStage[] = [OpportunityStage.WON, OpportunityStage.LOST];
+
+const defaultStageProbability: Record<OpportunityStage, number> = {
+  QUALIFICATION: 10,
+  DISCOVERY: 20,
+  REQUIREMENT: 35,
+  PROPOSAL: 50,
+  NEGOTIATION: 70,
+  VERBAL_COMMIT: 85,
+  CONTRACTING: 95,
+  WON: 100,
+  LOST: 0,
+};
+
+function normalizeOpportunityFinancials(input: {
+  stage?: OpportunityStage;
+  probability?: number;
+  valueCents: number;
+  currency: string;
+}): {
+  probability: number;
+  valueCents: number;
+  currency: string;
+  weightedForecastCents: number;
+} {
+  const probability =
+    input.probability ?? defaultStageProbability[input.stage ?? OpportunityStage.QUALIFICATION];
+
+  return {
+    probability,
+    valueCents: input.valueCents,
+    currency: input.currency.toUpperCase(),
+    weightedForecastCents: Math.round((input.valueCents * probability) / 100),
+  };
+}
+
+function validateOpportunityStageInput(stage: OpportunityStage, lostReason?: string): void {
+  if (stage === OpportunityStage.LOST && (lostReason === undefined || lostReason.length === 0)) {
+    throw new AppError("VALIDATION_ERROR", "Lost opportunities require a lost reason", 400);
+  }
+}
+
+function validateStageTransition(fromStage: OpportunityStage, toStage: OpportunityStage): void {
+  if (fromStage === toStage) {
+    return;
+  }
+
+  if (terminalOpportunityStages.includes(fromStage)) {
+    throw new AppError("VALIDATION_ERROR", "Closed opportunities cannot move stages", 400);
+  }
+
+  if (terminalOpportunityStages.includes(toStage)) {
+    return;
+  }
+
+  const fromIndex = opportunityStages.indexOf(fromStage);
+  const toIndex = opportunityStages.indexOf(toStage);
+
+  if (toIndex !== fromIndex + 1) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Opportunity stages must move forward one step at a time",
+      400,
+    );
+  }
+}
+
+function getStagnantCutoff(): Date {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 14);
+
+  return cutoff;
+}
+
+function toOpportunityView<T extends { stage: OpportunityStage; stageChangedAt: Date }>(
+  opportunity: T,
+): T & { isStagnant: boolean } {
+  return {
+    ...opportunity,
+    isStagnant:
+      !terminalOpportunityStages.includes(opportunity.stage) &&
+      opportunity.stageChangedAt < getStagnantCutoff(),
+  };
+}
+
+function getOpportunityOrderBy(
+  query: OpportunityListQuery,
+): Prisma.OpportunityOrderByWithRelationInput {
+  if (query.sortBy === "name") {
+    return { name: query.sortDirection };
+  }
+
+  if (query.sortBy === "updatedAt") {
+    return { updatedAt: query.sortDirection };
+  }
+
+  return { createdAt: query.sortDirection };
+}
+
 async function assertNoDuplicateAccount(
   tenantId: string,
   input: { name?: string; domain?: string; website?: string },
@@ -800,6 +1379,77 @@ async function assertContactAccountBelongsToTenant(
   }
 
   await assertAccountExists(tenantId, accountId);
+}
+
+async function assertOpportunityExists(
+  tenantId: string,
+  opportunityId: string,
+): Promise<{
+  stage: OpportunityStage;
+  probability: number;
+  valueCents: number;
+  currency: string;
+  lostReason: string | null;
+  wonAt: Date | null;
+  lostAt: Date | null;
+}> {
+  const opportunity = await prisma.opportunity.findFirst({
+    where: { id: opportunityId, tenantId, deletedAt: null },
+    select: {
+      stage: true,
+      probability: true,
+      valueCents: true,
+      currency: true,
+      lostReason: true,
+      wonAt: true,
+      lostAt: true,
+    },
+  });
+
+  if (opportunity === null) {
+    throw new AppError("NOT_FOUND", "Opportunity not found", 404);
+  }
+
+  return opportunity;
+}
+
+async function assertOpportunityRelationsBelongToTenant(
+  tenantId: string,
+  input: { accountId?: string; primaryContactId?: string; leadId?: string },
+): Promise<void> {
+  if (input.accountId !== undefined) {
+    await assertAccountExists(tenantId, input.accountId);
+  }
+
+  if (input.primaryContactId !== undefined) {
+    await assertContactExists(tenantId, input.primaryContactId);
+  }
+
+  if (input.leadId !== undefined) {
+    await assertLeadExists(tenantId, input.leadId);
+  }
+}
+
+async function assertOpportunityOwnerBelongsToTenant(
+  tenantId: string,
+  ownerId?: string,
+): Promise<void> {
+  if (ownerId === undefined) {
+    return;
+  }
+
+  const owner = await prisma.user.findFirst({
+    where: { id: ownerId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (owner === null) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Opportunity owner must belong to the active tenant",
+      400,
+    );
+  }
 }
 
 async function assertLeadOwnerBelongsToTenant(tenantId: string, ownerId?: string): Promise<void> {

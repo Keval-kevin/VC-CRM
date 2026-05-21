@@ -3,20 +3,124 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
+  convertLeadToOpportunity,
   createAccount,
   createContact,
   createLead,
+  createOpportunity,
   deleteAccount,
   deleteLead,
+  listOpportunities,
+  listOpportunityPipeline,
   listAccounts,
   listLeads,
   updateContact,
   updateLead,
+  updateOpportunity,
 } from "../src/modules/crm/crm.service.js";
 import type { CrmActor } from "../src/modules/crm/crm.types.js";
 import { prisma } from "../src/shared/prisma/client.js";
 
 describe("crm service", (): void => {
+  it("converts a lead into account, contact, and opportunity once", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const lead = await createLead(
+      actor,
+      {},
+      {
+        firstName: "Convert",
+        lastName: "Lead",
+        email: `convert-${randomUUID()}@example.com`,
+        company: `Convert Company ${randomUUID()}`,
+        source: "Website",
+        serviceInterest: "Salesforce team",
+      },
+    );
+    const leadId = getId(lead);
+
+    const opportunity = await convertLeadToOpportunity(actor, {}, leadId, {
+      valueCents: 2_500_000,
+      currency: "INR",
+      expectedCloseDate: new Date(),
+    });
+
+    expect(opportunity).toMatchObject({
+      stage: "QUALIFICATION",
+      probability: 10,
+      weightedForecastCents: 250_000,
+    });
+
+    const convertedLead = await prisma.lead.findUniqueOrThrow({
+      where: { id: leadId },
+      select: { status: true },
+    });
+    const opportunityId = getId(opportunity);
+    const createdCounts = await Promise.all([
+      prisma.account.count({ where: { opportunities: { some: { id: opportunityId } } } }),
+      prisma.contact.count({ where: { opportunities: { some: { id: opportunityId } } } }),
+      prisma.opportunityStageHistory.count({ where: { opportunityId } }),
+    ]);
+
+    expect(convertedLead.status).toBe("CONVERTED");
+    expect(createdCounts).toEqual([1, 1, 1]);
+    await expect(
+      convertLeadToOpportunity(actor, {}, leadId, { valueCents: 1 }),
+    ).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+  });
+
+  it("validates opportunity stage movement, forecast, and stagnant deals", async (): Promise<void> => {
+    const actor = await getTenantActor();
+    const account = await createAccount(actor, {}, { name: `Opportunity Account ${randomUUID()}` });
+    const opportunity = await createOpportunity(
+      actor,
+      {},
+      {
+        accountId: getId(account),
+        name: `Opportunity ${randomUUID()}`,
+        valueCents: 1_000_000,
+        currency: "INR",
+      },
+    );
+    const opportunityId = getId(opportunity);
+
+    await expect(
+      updateOpportunity(actor, {}, opportunityId, { stage: "PROPOSAL" }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+
+    const discovery = await updateOpportunity(actor, {}, opportunityId, { stage: "DISCOVERY" });
+    expect(discovery).toMatchObject({
+      stage: "DISCOVERY",
+      probability: 20,
+      weightedForecastCents: 200_000,
+    });
+
+    await prisma.opportunity.update({
+      where: { id: opportunityId },
+      data: { stageChangedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) },
+    });
+    const stagnant = await listOpportunities(actor, {
+      page: 1,
+      pageSize: 10,
+      sortDirection: "desc",
+      stagnantOnly: true,
+    });
+    const pipeline = await listOpportunityPipeline(actor);
+
+    expect(stagnant.items.some((item) => getId(item) === opportunityId)).toBe(true);
+    expect(Array.isArray(pipeline)).toBe(true);
+
+    await expect(
+      updateOpportunity(actor, {}, opportunityId, { stage: "LOST" }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const lost = await updateOpportunity(actor, {}, opportunityId, {
+      stage: "LOST",
+      lostReason: "Budget paused",
+    });
+    expect(lost).toMatchObject({ stage: "LOST", probability: 0, weightedForecastCents: 0 });
+  });
+
   it("creates, scores, updates, and soft deletes tenant-scoped leads with timeline/audit", async (): Promise<void> => {
     const actor = await getTenantActor();
     const email = `lead-service-${randomUUID()}@example.com`;
