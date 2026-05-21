@@ -48,6 +48,20 @@ export function InterviewListPage(): JSX.Element {
           </Card>
         ))}
       </section>
+      <Card>
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_1fr_1fr]">
+          {[
+            ["Today", "Keep same-day rounds and pending interviewer feedback prominent."],
+            ["Panel ownership", "Interviewer and round stay visible beside candidate and requirement."],
+            ["Outcome capture", "Passed, rejected, and pending feedback are ready for fast triage."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-control border border-border bg-vc-bg p-3">
+              <p className="text-sm font-semibold text-vc-navy">{title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <DataTableShell
         title="Interview calendar/list"
         columns={[

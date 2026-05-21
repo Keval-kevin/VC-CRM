@@ -48,6 +48,20 @@ export function SubmissionListPage(): JSX.Element {
           </Card>
         ))}
       </section>
+      <Card>
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_1fr_1fr]">
+          {[
+            ["Technical review", "Keep reviewer approval and rejection state visible before client send."],
+            ["Client submission", "Separate internal review from client-facing submission status."],
+            ["Interview handoff", "Surface interview readiness and feedback capture from the same tracker."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-control border border-border bg-vc-bg p-3">
+              <p className="text-sm font-semibold text-vc-navy">{title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <DataTableShell
         title="Submission tracker"
         columns={[

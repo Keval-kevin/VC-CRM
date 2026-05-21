@@ -49,6 +49,20 @@ export function PlacementListPage(): JSX.Element {
           </Card>
         ))}
       </section>
+      <Card>
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_1fr_1fr]">
+          {[
+            ["Joining readiness", "Joining date, replacement window, and candidate are grouped together."],
+            ["Billing guardrail", "Billing status remains visible without exposing every financial field."],
+            ["Finance access", "Margin and rate fields stay reserved for authorized roles."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-control border border-border bg-vc-bg p-3">
+              <p className="text-sm font-semibold text-vc-navy">{title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <DataTableShell
         title="Placement list"
         columns={[

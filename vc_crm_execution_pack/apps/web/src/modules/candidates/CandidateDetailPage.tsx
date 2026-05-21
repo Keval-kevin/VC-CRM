@@ -8,6 +8,7 @@ import {
   DetailSummaryGrid,
   EmptyState,
   SectionTabs,
+  SurfaceCard,
 } from "../../components/shared";
 import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
@@ -82,20 +83,60 @@ export function CandidateDetailPage(): JSX.Element {
       }
     >
       {activeTab === "overview" && (
-        <DetailSection title="Skill filters">
-          <div className="flex flex-wrap gap-2">
-            {candidate.primarySkills.map((skill) => (
-              <Badge key={skill}>{skill}</Badge>
-            ))}
-            {candidate.secondarySkills.map((skill) => (
-              <Badge key={skill} variant="muted">
-                {skill}
-              </Badge>
-            ))}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-4">
+            <DetailSection title="Skills matrix">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Primary skills
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {candidate.primarySkills.map((skill) => (
+                      <Badge key={skill}>{skill}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Secondary skills
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {candidate.secondarySkills.map((skill) => (
+                      <Badge key={skill} variant="muted">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </DetailSection>
+            <DetailSection title="Skill filters">
+              <DetailField label="Experience" value={candidate.experience} />
+              <DetailField label="Current CTC" value={candidate.currentCtc} />
+              <DetailField label="Expected CTC" value={candidate.expectedCtc} />
+              <DetailField label="Notice period" value={candidate.noticePeriod} />
+              <DetailField label="Availability" value={candidate.availability} />
+            </DetailSection>
           </div>
-          <DetailField label="Current CTC" value={candidate.currentCtc} />
-          <DetailField label="Expected CTC" value={candidate.expectedCtc} />
-        </DetailSection>
+          <div className="grid gap-4">
+            <SurfaceCard>
+              <p className="text-sm font-semibold text-vc-navy">Resume card</p>
+              <p className="mt-1 text-sm text-muted-foreground">{candidate.resume}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="muted">{candidate.parsingStatus}</Badge>
+                <Badge variant={candidate.consent === "Captured" ? "success" : "warning"}>
+                  {candidate.consent}
+                </Badge>
+              </div>
+            </SurfaceCard>
+            <DetailSection title="Vendor details">
+              <DetailField label="Vendor" value={candidate.vendor} />
+              <DetailField label="Location" value={candidate.location} />
+              <DetailField label="Blacklist" value={candidate.blacklist} />
+            </DetailSection>
+          </div>
+        </div>
       )}
       {activeTab === "documents" && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -118,12 +159,19 @@ export function CandidateDetailPage(): JSX.Element {
         </div>
       )}
       {activeTab === "submissions" && (
-        <EmptyState
-          icon={Tags}
-          title="No submissions yet"
-          description="Submission history will appear once this candidate is sent to clients."
-          actionLabel="Submit candidate"
-        />
+        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+          <EmptyState
+            icon={Tags}
+            title="No submissions yet"
+            description="Submission history will appear once this candidate is sent to clients."
+            actionLabel="Submit candidate"
+          />
+          <DetailSection title="Submission history">
+            <DetailField label="Latest submission" value="No client submissions yet" />
+            <DetailField label="Review status" value="Ready for matching" />
+            <DetailField label="Interview status" value="Not scheduled" />
+          </DetailSection>
+        </div>
       )}
       {activeTab === "related" && (
         <DetailSection title="Consent tracking">

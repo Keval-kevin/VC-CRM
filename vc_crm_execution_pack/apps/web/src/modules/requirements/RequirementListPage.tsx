@@ -52,6 +52,20 @@ export function RequirementListPage(): JSX.Element {
           </Card>
         ))}
       </section>
+      <Card>
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_1fr_1fr]">
+          {[
+            ["Demand intake", "Role, skills, budget, positions, and priority are captured first."],
+            ["Vendor broadcast", "Shortlist vendors by expertise, risk, location, and tier."],
+            ["Submission funnel", "Track technical review, client submission, interviews, and feedback."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-control border border-border bg-vc-bg p-3">
+              <p className="text-sm font-semibold text-vc-navy">{title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <DataTableShell
         title="Requirements list"
         columns={[

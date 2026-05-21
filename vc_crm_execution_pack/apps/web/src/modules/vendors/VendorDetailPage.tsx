@@ -9,6 +9,7 @@ import {
   EmptyState,
   SectionTabs,
   StatusBadge,
+  SurfaceCard,
 } from "../../components/shared";
 import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
@@ -87,29 +88,58 @@ export function VendorDetailPage(): JSX.Element {
       }
     >
       {activeTab === "overview" && (
-        <DetailSection title="Expertise tags">
-          <div className="flex flex-wrap gap-2">
-            {vendor.categories.map((category) => (
-              <Badge key={category}>{category}</Badge>
-            ))}
-            {vendor.expertise.map((skill) => (
-              <Badge key={skill} variant="muted">
-                {skill}
-              </Badge>
-            ))}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <DetailSection title="Expertise tags">
+            <div className="flex flex-wrap gap-2">
+              {vendor.categories.map((category) => (
+                <Badge key={category}>{category}</Badge>
+              ))}
+              {vendor.expertise.map((skill) => (
+                <Badge key={skill} variant="muted">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+            <DetailField label="Decision maker" value={vendor.decisionMaker} />
+            <DetailField label="Location" value={vendor.location} />
+          </DetailSection>
+          <div className="grid gap-4">
+            <SurfaceCard>
+              <p className="text-sm font-semibold text-vc-navy">Performance metrics</p>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                {[
+                  ["Score", String(vendor.score)],
+                  ["Tier", vendor.tier],
+                  ["Risk", vendor.riskStatus],
+                  ["Portal", vendor.portal],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-control border border-border bg-vc-bg p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {label}
+                    </p>
+                    <p className="mt-1 font-semibold text-vc-navy">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </SurfaceCard>
+            <SurfaceCard>
+              <p className="text-sm font-semibold text-vc-navy">Candidate pool</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Candidate availability will connect here from vendor submissions and active pools.
+              </p>
+            </SurfaceCard>
           </div>
-          <DetailField label="Decision maker" value={vendor.decisionMaker} />
-          <DetailField
-            label="Portal schema"
-            value="Invite email, slug, enabled flag, and last login timestamp"
-          />
-        </DetailSection>
+        </div>
       )}
       {activeTab === "documents" && (
         <DetailSection title="Document/status panel">
           <DetailField label="NDA" value={vendor.ndaStatus} />
           <DetailField label="MSA" value={vendor.msaStatus} />
           <DetailField label="Rate card" value={vendor.rateCard} />
+          <DetailField
+            label="Portal schema"
+            value="Invite email, slug, enabled flag, and last login timestamp"
+          />
         </DetailSection>
       )}
       {activeTab === "scorecard" && (

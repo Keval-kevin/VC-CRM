@@ -52,6 +52,20 @@ export function CandidateListPage(): JSX.Element {
           </Card>
         ))}
       </section>
+      <Card>
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_1fr_1fr]">
+          {[
+            ["Profile readiness", "Resume, skills, experience, CTC, and notice period are visible at scan level."],
+            ["Consent guardrail", "Consent and duplicate checks stay close to submission decisions."],
+            ["Vendor source", "Vendor-linked candidates keep source, ownership, and availability together."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-control border border-border bg-vc-bg p-3">
+              <p className="text-sm font-semibold text-vc-navy">{title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <DataTableShell
         title="Candidate list"
         columns={[

@@ -10,6 +10,7 @@ import {
   LoadingSkeleton,
   SearchInput,
   StatusBadge,
+  SurfaceCard,
 } from "../../components/shared";
 import { ListPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
@@ -90,6 +91,20 @@ export function VendorListPage(): JSX.Element {
         />
       }
     >
+      <SurfaceCard>
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr]">
+          {[
+            ["Expertise coverage", "Category and skill tags make vendor fit easy to compare."],
+            ["Compliance readiness", "NDA, MSA, rate card, and portal state live on the detail page."],
+            ["Performance signal", "Score, risk, tier, and responsiveness guide shortlist decisions."],
+          ].map(([title, description]) => (
+            <div key={title} className="rounded-control border border-border bg-vc-bg p-3">
+              <p className="text-sm font-semibold text-vc-navy">{title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </div>
+      </SurfaceCard>
       <DataTable<Vendor>
         title="Vendor list"
         columns={[
