@@ -11,7 +11,16 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import {
   ActivityTimeline,
@@ -21,6 +30,7 @@ import {
 } from "../../components/shared";
 import { DashboardPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { activities } from "../activities/activityData";
 import { interviews } from "../interviews/interviewData";
 import { leads } from "../leads/leadData";
@@ -42,7 +52,30 @@ const dashboardFallback = {
     .length,
 } as const;
 
+const dashboardRoles = [
+  "Founder/Super Admin",
+  "Tenant Admin",
+  "Sales Manager",
+  "Sales Executive",
+  "Delivery Manager",
+  "HR Recruiter",
+  "Finance",
+] as const;
+
+type DashboardRole = (typeof dashboardRoles)[number];
+
+const roleDescriptions: Record<DashboardRole, string> = {
+  "Founder/Super Admin": "Company-wide operating view across revenue, delivery, staffing, finance, and security.",
+  "Tenant Admin": "Tenant health, user readiness, workflow activity, and governance signals.",
+  "Sales Manager": "Pipeline quality, forecast, proposal approvals, and owner activity.",
+  "Sales Executive": "Lead follow-up, active deals, next actions, and proposal movement.",
+  "Delivery Manager": "Open requirements, submissions, interviews, placements, and bottlenecks.",
+  "HR Recruiter": "Candidate flow, submissions, interviews, consent, and availability.",
+  Finance: "Placement billing, margin, vendor costs, and audit/security visibility.",
+};
+
 export function DashboardPage(): JSX.Element {
+  const [selectedRole, setSelectedRole] = useState<DashboardRole>("Founder/Super Admin");
   const dashboard = useMemo(() => {
     const pipelineValue = opportunities.reduce(
       (sum, opportunity) => sum + opportunity.valueCents,
@@ -84,9 +117,36 @@ export function DashboardPage(): JSX.Element {
   return (
     <DashboardPageTemplate
       eyebrow="Dashboard"
-      title="Operating overview"
-      description="Founder-friendly view across sales, delivery, proposals, and staffing execution. Sample values are marked where dedicated dashboard APIs are not available yet."
-      primaryAction={<Button type="button">Create record</Button>}
+      title={`${selectedRole} dashboard`}
+      description={roleDescriptions[selectedRole]}
+      primaryAction={
+        <Button type="button" variant="secondary" disabled title="CSV export endpoint placeholder">
+          Export CSV
+        </Button>
+      }
+      toolbar={
+        <SurfaceCard depth="flat" padding="sm" className="space-y-3">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {dashboardRoles.map((role) => (
+              <Button
+                key={role}
+                type="button"
+                variant={role === selectedRole ? "default" : "secondary"}
+                className="shrink-0"
+                onClick={() => setSelectedRole(role)}
+              >
+                {role}
+              </Button>
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            <Input type="date" aria-label="Dashboard from date" defaultValue="2026-05-01" />
+            <Input type="date" aria-label="Dashboard to date" defaultValue="2026-05-31" />
+            <Input aria-label="Dashboard team filter" placeholder="Team" />
+            <Input aria-label="Dashboard owner or status filter" placeholder="Owner / status" />
+          </div>
+        </SurfaceCard>
+      }
       kpiSection={
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <KpiCard
@@ -177,26 +237,12 @@ export function DashboardPage(): JSX.Element {
             title="Pipeline snapshot"
             description="Stage summary and deal value by stage."
           />
-          <div className="space-y-4 p-4">
-            {dashboard.stageSummaries.map((stage) => (
-              <div key={stage.label}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-vc-navy">{stage.label}</p>
-                    <p className="text-xs text-muted-foreground">{stage.count} deal(s)</p>
-                  </div>
-                  <p className="text-sm font-semibold text-vc-navy">
-                    {formatMoney(stage.value, "INR")}
-                  </p>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full rounded-full bg-vc-blue ${getBarWidthClass(stage.value, dashboard.maxStageValue)}`}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <DashboardBarChart
+            data={dashboard.stageSummaries.map((stage) => ({
+              label: stage.label,
+              value: Math.round(stage.value / 100000),
+            }))}
+          />
         </SurfaceCard>
       </section>
 
@@ -341,6 +387,22 @@ function TeamPanel(props: {
   );
 }
 
+function DashboardBarChart(props: { data: { label: string; value: number }[] }): JSX.Element {
+  return (
+    <div className="h-72 p-4">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={props.data} margin={{ left: -20, right: 8, top: 8, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+          <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+          <Tooltip />
+          <Bar dataKey="value" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function getOwnerRows(values: string[]): { label: string; count: number }[] {
   const counts = values.reduce<Record<string, number>>((accumulator, value) => {
     accumulator[value] = (accumulator[value] ?? 0) + 1;
@@ -350,26 +412,4 @@ function getOwnerRows(values: string[]): { label: string; count: number }[] {
   return Object.entries(counts)
     .map(([label, count]) => ({ label, count }))
     .sort((first, second) => second.count - first.count);
-}
-
-function getBarWidthClass(value: number, maxValue: number): string {
-  const percent = (value / maxValue) * 100;
-
-  if (percent >= 90) {
-    return "w-full";
-  }
-
-  if (percent >= 70) {
-    return "w-4/5";
-  }
-
-  if (percent >= 50) {
-    return "w-3/5";
-  }
-
-  if (percent >= 30) {
-    return "w-2/5";
-  }
-
-  return "w-1/5";
 }

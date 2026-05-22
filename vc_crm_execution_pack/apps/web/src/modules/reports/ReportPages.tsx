@@ -11,6 +11,15 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import {
   DataTable,
@@ -233,6 +242,9 @@ function ReportFrame({
           onChange={onDateRangeChange}
           className="w-full lg:max-w-md"
         />
+        <Input placeholder="Team" aria-label="Team filter" />
+        <Input placeholder="Owner" aria-label="Owner filter" />
+        <Input placeholder="Status" aria-label="Status filter" />
         {filters}
       </FilterBar>
       {kpis}
@@ -618,47 +630,34 @@ function DisabledExportButton(): JSX.Element {
       title="Export is a placeholder because no export functionality exists yet."
     >
       <Download className="h-4 w-4" />
-      Export
+      Export CSV
     </Button>
   );
 }
 
 function ReportChart({ title, values }: { title: string; values: number[] }): JSX.Element {
+  const data = values.map((value, index) => ({
+    label: `Segment ${index + 1}`,
+    value,
+  }));
+
   return (
     <SurfaceCard>
       <h2 className="text-base font-semibold text-vc-navy">{title}</h2>
-      <div className="mt-5 space-y-3">
-        {values.map((width, index) => (
-          <div key={`${title}-${width}-${index}`}>
-            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-              <span>Segment {index + 1}</span>
-              <span>{width}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className={barWidthClass(width)} />
-            </div>
-          </div>
-        ))}
+      <div className="mt-5 h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ left: -20, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+            <Tooltip />
+            <Bar dataKey="value" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        Lightweight chart placeholder using existing module data. No report API contract changed.
+        Recharts visualization wired to the report view model. CSV export remains a placeholder.
       </p>
     </SurfaceCard>
   );
-}
-
-function barWidthClass(width: number): string {
-  if (width >= 70) {
-    return "h-full w-3/4 rounded-full bg-vc-blue";
-  }
-
-  if (width >= 50) {
-    return "h-full w-1/2 rounded-full bg-vc-blue";
-  }
-
-  if (width > 0) {
-    return "h-full w-1/3 rounded-full bg-vc-blue";
-  }
-
-  return "h-full w-0 rounded-full bg-vc-blue";
 }

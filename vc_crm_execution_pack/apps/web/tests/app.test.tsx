@@ -10,7 +10,9 @@ describe("App", (): void => {
   it("renders the dashboard inside the protected app shell", (): void => {
     renderApp("/");
 
-    expect(screen.getByRole("heading", { name: "Operating overview" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Founder/Super Admin dashboard" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeInTheDocument();
     expect(screen.getByText("Sales")).toBeInTheDocument();
     expect(screen.getByText("Delivery")).toBeInTheDocument();

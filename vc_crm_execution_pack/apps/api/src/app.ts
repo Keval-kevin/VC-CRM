@@ -5,6 +5,7 @@ import helmet from "helmet";
 import { adminRouter } from "./modules/admin/index.js";
 import { authRouter } from "./modules/auth/index.js";
 import { crmRouter } from "./modules/crm/index.js";
+import { reportsRouter } from "./modules/reports/index.js";
 import { createSuccessResponse } from "./shared/http/response.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
 import { notFoundHandler } from "./shared/middleware/not-found.js";
@@ -22,6 +23,7 @@ export function createApp(): Express {
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/admin", adminRouter);
+  app.use("/api/v1", reportsRouter);
   app.use("/api/v1", crmRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
