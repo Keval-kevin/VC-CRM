@@ -134,12 +134,15 @@ export function CandidateListPage(): JSX.Element {
           </Button>
         </CardContent>
       </Card>
-      <EmptyState
-        icon={UserPlus}
-        title="No candidates match this view"
-        description="Clear filters or create a candidate with resume, skills, vendor, consent, and availability fields."
-        actionLabel="Add candidate"
-      />
+      {candidates.length === 0 && (
+        <EmptyState
+          icon={UserPlus}
+          title="No candidates match this view"
+          description="Clear filters or create a candidate with resume, skills, vendor, consent, and availability fields."
+          actionLabel="Add candidate"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      )}
       <CandidateFormPanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
     </div>
   );

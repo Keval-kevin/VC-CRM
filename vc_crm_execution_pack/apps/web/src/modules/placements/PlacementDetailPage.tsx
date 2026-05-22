@@ -10,14 +10,13 @@ import {
 } from "../../components/shared";
 import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { PlacementFormPanel } from "./PlacementFormPanel";
 import { placements } from "./placementData";
 
-const canViewFinanceFields = true;
-const canViewAuditLog = true;
-
 export function PlacementDetailPage(): JSX.Element {
   const { placementId } = useParams();
+  const { canViewAuditLog, canViewFinancials: canViewFinanceFields } = getUiPermissions();
   const [activeTab, setActiveTab] = useState("overview");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const placement = useMemo(

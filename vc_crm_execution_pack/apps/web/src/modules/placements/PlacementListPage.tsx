@@ -109,13 +109,15 @@ export function PlacementListPage(): JSX.Element {
           </Card>
         ))}
       </div>
-      <EmptyState
-        icon={Handshake}
-        title="No placements match this view"
-        description="Create a placement when a submitted candidate is selected and ready for joining and billing."
-        actionLabel="Create placement"
-        onAction={() => setIsPanelOpen(true)}
-      />
+      {placements.length === 0 && (
+        <EmptyState
+          icon={Handshake}
+          title="No placements match this view"
+          description="Create a placement when a submitted candidate is selected and ready for joining and billing."
+          actionLabel="Create placement"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      )}
       <PlacementFormPanel
         isOpen={isPanelOpen}
         mode="create"

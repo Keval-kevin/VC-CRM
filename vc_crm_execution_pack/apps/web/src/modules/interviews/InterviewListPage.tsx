@@ -102,13 +102,15 @@ export function InterviewListPage(): JSX.Element {
           </Card>
         ))}
       </div>
-      <EmptyState
-        icon={CalendarClock}
-        title="No interviews match this view"
-        description="Schedule interviews from submitted candidates and capture panel feedback."
-        actionLabel="Schedule interview"
-        onAction={() => setIsPanelOpen(true)}
-      />
+      {interviews.length === 0 && (
+        <EmptyState
+          icon={CalendarClock}
+          title="No interviews match this view"
+          description="Schedule interviews from submitted candidates and capture panel feedback."
+          actionLabel="Schedule interview"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      )}
       <InterviewFormPanel
         isOpen={isPanelOpen}
         mode="create"

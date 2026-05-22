@@ -14,13 +14,13 @@ import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { ProposalStatusBadge } from "./ProposalStatusBadge";
 import { proposals } from "./proposalData";
 
-const canViewAuditLog = true;
-
 export function ProposalDetailPage(): JSX.Element {
   const { proposalId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [activeTab, setActiveTab] = useState("overview");
   const proposal = useMemo(
     () =>

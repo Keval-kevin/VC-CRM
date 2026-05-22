@@ -11,14 +11,14 @@ import {
 } from "../../components/shared";
 import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { OpportunityFormPanel } from "./OpportunityFormPanel";
 import { OpportunityStageBadge } from "./OpportunityStageBadge";
 import { formatMoney, opportunities, opportunityStages, weightedForecast } from "./opportunityData";
 
-const canViewAuditLog = true;
-
 export function OpportunityDetailPage(): JSX.Element {
   const { opportunityId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const opportunity = useMemo(

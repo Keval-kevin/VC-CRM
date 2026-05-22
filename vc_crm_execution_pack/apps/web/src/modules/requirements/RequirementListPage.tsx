@@ -133,13 +133,15 @@ export function RequirementListPage(): JSX.Element {
           </Button>
         </CardContent>
       </Card>
-      <EmptyState
-        icon={Send}
-        title="No requirements match this view"
-        description="Clear filters or create a requirement linked to an account or opportunity."
-        actionLabel="Add requirement"
-        onAction={() => setIsPanelOpen(true)}
-      />
+      {requirements.length === 0 && (
+        <EmptyState
+          icon={Send}
+          title="No requirements match this view"
+          description="Clear filters or create a requirement linked to an account or opportunity."
+          actionLabel="Add requirement"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      )}
       <RequirementFormPanel
         isOpen={isPanelOpen}
         mode="create"

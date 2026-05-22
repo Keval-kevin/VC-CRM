@@ -1,5 +1,7 @@
 import { AlertTriangle } from "lucide-react";
+import { useRef } from "react";
 
+import { useOverlayFocus } from "../../lib/overlayFocus";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 
@@ -26,6 +28,10 @@ export function ConfirmDialog({
   title,
   tone = "default",
 }: ConfirmDialogProps): JSX.Element | null {
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useOverlayFocus({ containerRef: dialogRef, isOpen, onClose: onCancel });
+
   if (!isOpen) {
     return null;
   }
@@ -33,9 +39,11 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-vc-navy/40 p-4">
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
         className={cn(
           "w-full max-w-md rounded-card border border-border bg-card p-5 shadow-modal",
           className,

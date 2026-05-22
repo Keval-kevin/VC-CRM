@@ -7,6 +7,30 @@ import { Input } from "../../components/ui/input";
 import { AdminSettingsSection } from "./AdminSettingsSection";
 import { AdminSettingsShell } from "./AdminSettingsShell";
 
+const auditRows = [
+  {
+    id: "1",
+    action: "admin.user.invited",
+    actor: "Tenant Admin",
+    entity: "User",
+    ip: "127.0.0.1",
+  },
+  {
+    id: "2",
+    action: "admin.ai_provider.updated",
+    actor: "Tenant Admin",
+    entity: "AI",
+    ip: "127.0.0.1",
+  },
+  {
+    id: "3",
+    action: "admin.tenant_settings.updated",
+    actor: "Tenant Admin",
+    entity: "Settings",
+    ip: "127.0.0.1",
+  },
+];
+
 export function AdminAuditLogsPage(): JSX.Element {
   return (
     <AdminSettingsShell
@@ -32,38 +56,18 @@ export function AdminAuditLogsPage(): JSX.Element {
               { key: "entity", label: "Entity" },
               { key: "ip", label: "IP" },
             ]}
-            rows={[
-              {
-                id: "1",
-                action: "admin.user.invited",
-                actor: "Tenant Admin",
-                entity: "User",
-                ip: "127.0.0.1",
-              },
-              {
-                id: "2",
-                action: "admin.ai_provider.updated",
-                actor: "Tenant Admin",
-                entity: "AI",
-                ip: "127.0.0.1",
-              },
-              {
-                id: "3",
-                action: "admin.tenant_settings.updated",
-                actor: "Tenant Admin",
-                entity: "Settings",
-                ip: "127.0.0.1",
-              },
-            ]}
+            rows={auditRows}
           />
         </div>
       </AdminSettingsSection>
-      <EmptyState
-        icon={ShieldCheck}
-        title="No audit log selected"
-        description="Detail view will show metadata, actor, entity, IP address, user agent, and timestamp."
-        actionLabel="Open latest log"
-      />
+      {auditRows.length === 0 && (
+        <EmptyState
+          icon={ShieldCheck}
+          title="No audit logs match this view"
+          description="Clear filters to show metadata, actor, entity, IP address, user agent, and timestamp."
+          actionLabel="Clear filters"
+        />
+      )}
     </AdminSettingsShell>
   );
 }

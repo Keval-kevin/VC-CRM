@@ -14,13 +14,13 @@ import {
 import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { VendorFormPanel } from "./VendorFormPanel";
 import { vendors } from "./vendorData";
 
-const canViewAuditLog = true;
-
 export function VendorDetailPage(): JSX.Element {
   const { vendorId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [activeTab, setActiveTab] = useState("overview");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const vendor = useMemo(

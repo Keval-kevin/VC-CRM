@@ -14,13 +14,13 @@ import {
 import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { RequirementFormPanel } from "./RequirementFormPanel";
 import { requirements, submissions } from "./requirementData";
 
-const canViewAuditLog = true;
-
 export function RequirementDetailPage(): JSX.Element {
   const { requirementId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [activeTab, setActiveTab] = useState("overview");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const requirement = useMemo(

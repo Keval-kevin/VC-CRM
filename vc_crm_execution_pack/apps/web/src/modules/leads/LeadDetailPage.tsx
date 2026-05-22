@@ -12,14 +12,14 @@ import {
 } from "../../components/shared";
 import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { LeadFormPanel } from "./LeadFormPanel";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { leads } from "./leadData";
 
-const canViewAuditLog = true;
-
 export function LeadDetailPage(): JSX.Element {
   const { leadId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const lead = useMemo(

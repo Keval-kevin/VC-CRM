@@ -1,7 +1,8 @@
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
+import { useOverlayFocus } from "../../lib/overlayFocus";
 import { Button } from "../ui/button";
 
 export type FormSlideoverProps = {
@@ -23,6 +24,10 @@ export function FormSlideover({
   onClose,
   title,
 }: FormSlideoverProps): JSX.Element {
+  const panelRef = useRef<HTMLElement>(null);
+
+  useOverlayFocus({ containerRef: panelRef, isOpen, onClose });
+
   return (
     <div
       className={cn(
@@ -39,9 +44,11 @@ export function FormSlideover({
         onClick={onClose}
       />
       <aside
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
         className={cn(
           "absolute right-0 top-0 flex h-full w-full max-w-full flex-col bg-card shadow-modal transition-transform sm:max-w-xl sm:rounded-l-card",
           isOpen ? "translate-x-0" : "translate-x-full",

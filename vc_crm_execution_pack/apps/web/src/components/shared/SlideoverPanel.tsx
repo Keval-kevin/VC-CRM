@@ -1,5 +1,7 @@
 import { X } from "lucide-react";
+import { useRef } from "react";
 
+import { useOverlayFocus } from "../../lib/overlayFocus";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -17,6 +19,10 @@ export function SlideoverPanel({
   onClose,
   title,
 }: SlideoverPanelProps): JSX.Element {
+  const panelRef = useRef<HTMLElement>(null);
+
+  useOverlayFocus({ containerRef: panelRef, isOpen, onClose });
+
   return (
     <div
       className={cn(
@@ -33,7 +39,9 @@ export function SlideoverPanel({
         onClick={onClose}
       />
       <aside
+        ref={panelRef}
         role="complementary"
+        tabIndex={-1}
         className={cn(
           "absolute right-0 top-0 flex h-full w-full max-w-full flex-col bg-card shadow-modal transition-transform sm:max-w-xl sm:rounded-l-card",
           isOpen ? "translate-x-0" : "translate-x-full",

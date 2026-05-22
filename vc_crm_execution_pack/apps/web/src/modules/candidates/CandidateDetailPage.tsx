@@ -13,13 +13,13 @@ import {
 import { DetailPageTemplate } from "../../components/templates";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { CandidateFormPanel } from "./CandidateFormPanel";
 import { candidates } from "./candidateData";
 
-const canViewAuditLog = true;
-
 export function CandidateDetailPage(): JSX.Element {
   const { candidateId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [activeTab, setActiveTab] = useState("overview");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const candidate = useMemo(

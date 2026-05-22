@@ -12,13 +12,13 @@ import {
 } from "../../components/shared";
 import { DetailPageTemplate } from "../../components/templates";
 import { Button } from "../../components/ui/button";
+import { getUiPermissions } from "../../lib/uiPermissions";
 import { AccountFormPanel } from "./AccountFormPanel";
 import { accounts, contacts } from "./accountData";
 
-const canViewAuditLog = true;
-
 export function AccountDetailPage(): JSX.Element {
   const { accountId } = useParams();
+  const { canViewAuditLog } = getUiPermissions();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const account = useMemo(

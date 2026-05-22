@@ -100,13 +100,15 @@ export function SubmissionListPage(): JSX.Element {
           </Card>
         ))}
       </div>
-      <EmptyState
-        icon={CalendarClock}
-        title="No submissions match this view"
-        description="Submit candidates from a requirement to track review, client submission, interviews, and feedback."
-        actionLabel="Create submission"
-        onAction={() => setIsPanelOpen(true)}
-      />
+      {submissions.length === 0 && (
+        <EmptyState
+          icon={CalendarClock}
+          title="No submissions match this view"
+          description="Submit candidates from a requirement to track review, client submission, interviews, and feedback."
+          actionLabel="Create submission"
+          onAction={() => setIsPanelOpen(true)}
+        />
+      )}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-2">
