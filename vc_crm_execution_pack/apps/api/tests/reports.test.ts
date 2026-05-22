@@ -20,6 +20,9 @@ beforeEach((): void => {
 
 afterAll(async (): Promise<void> => {
   await prisma.userRole.deleteMany({ where: { user: { email: { endsWith: `@${testDomain}` } } } });
+  await prisma.rolePermission.deleteMany({
+    where: { role: { uniqueKey: { startsWith: "reports-test:" } } },
+  });
   await prisma.role.deleteMany({ where: { uniqueKey: { startsWith: "reports-test:" } } });
   await prisma.user.deleteMany({ where: { email: { endsWith: `@${testDomain}` } } });
   await prisma.$disconnect();
@@ -66,6 +69,62 @@ describe("reports API", (): void => {
 
     await request(app).get("/api/v1/reports").set("authorization", `Bearer ${token}`).expect(403);
   });
+
+  it("rejects dashboard roles without matching permissions", async (): Promise<void> => {
+    const token = await login(await createUserWithPermissions(["leads:read:all"]));
+
+    await request(app)
+      .get("/api/v1/dashboards/sales-executive")
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    await request(app)
+      .get("/api/v1/dashboards/finance")
+      .set("authorization", `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it("rejects invalid report date ranges and cross-tenant owner filters", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+    const otherOwner = await prisma.user.findFirstOrThrow({
+      where: { email: "sales.manager@easenext.local" },
+      select: { id: true },
+    });
+
+    await request(app)
+      .get("/api/v1/reports/sales-pipeline")
+      .query({ from: "2026-12-31", to: "2026-01-01" })
+      .set("authorization", `Bearer ${token}`)
+      .expect(400);
+
+    await request(app)
+      .get("/api/v1/reports/lead-source-performance")
+      .query({ ownerId: otherOwner.id })
+      .set("authorization", `Bearer ${token}`)
+      .expect(400);
+  });
+
+  it("writes audit entries for direct report and dashboard reads", async (): Promise<void> => {
+    const token = await login("tenant.admin@virtualcoders.local");
+
+    await request(app)
+      .get("/api/v1/reports/sales-pipeline")
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app)
+      .get("/api/v1/dashboards/tenant-admin")
+      .set("authorization", `Bearer ${token}`)
+      .expect(200);
+
+    const auditCount = await prisma.auditLog.count({
+      where: {
+        action: { in: ["report.viewed", "dashboard.viewed"] },
+        entityType: "report",
+      },
+    });
+
+    expect(auditCount).toBeGreaterThanOrEqual(2);
+  });
 });
 
 async function login(email: string): Promise<string> {
@@ -83,11 +142,15 @@ async function login(email: string): Promise<string> {
 }
 
 async function createUserWithoutReportPermissions(): Promise<string> {
+  return createUserWithPermissions([]);
+}
+
+async function createUserWithPermissions(permissionKeys: string[]): Promise<string> {
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { slug: "virtual-coders" },
     select: { id: true },
   });
-  const email = `no-report-${randomUUID()}@${testDomain}`;
+  const email = `reports-user-${randomUUID()}@${testDomain}`;
   const user = await prisma.user.create({
     data: {
       tenantId: tenant.id,
@@ -103,12 +166,26 @@ async function createUserWithoutReportPermissions(): Promise<string> {
     data: {
       tenantId: tenant.id,
       scope: RoleScope.TENANT,
-      key: "no-reports",
+      key: "reports-test-role",
       uniqueKey: `reports-test:${randomUUID()}`,
       name: "Reports Test No Reports",
     },
     select: { id: true },
   });
+
+  for (const permissionKey of permissionKeys) {
+    const permission = await prisma.permission.findUniqueOrThrow({
+      where: { key: permissionKey },
+      select: { id: true },
+    });
+
+    await prisma.rolePermission.create({
+      data: {
+        roleId: role.id,
+        permissionId: permission.id,
+      },
+    });
+  }
 
   await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
 

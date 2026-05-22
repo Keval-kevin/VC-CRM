@@ -87,19 +87,27 @@ pnpm prisma db seed
 pnpm db:reset
 ```
 
-## Database Foundation
+## Database Seed
 
-The Phase 1 database foundation uses Prisma with PostgreSQL and currently includes only:
+The Prisma seed is idempotent and safe to run repeatedly. It creates a realistic Indian IT services CRM demo dataset:
 
-- Tenant
-- User
-- Role
-- Permission
-- UserRole
-- RolePermission
-- AuditLog
+- 3 tenants: Virtual Coders, Easenext, Wurkzen
+- 20 users with role assignments
+- CRM roles and permissions
+- 100 leads, 30 accounts, 50 contacts, 25 opportunities, 10 proposals
+- 15 vendors, 100 candidates, 20 requirements, 50 submissions, 10 interviews, 5 placements
+- CRM activities, reminder-style notification tasks, timeline entries, and 100 audit logs
 
-Run migrations and the idempotent seed:
+All seeded users use the local development password `Password123!`. Useful demo logins include:
+
+- `super.admin@virtualcoders.local`
+- `tenant.admin@virtualcoders.local`
+- `sales.manager@virtualcoders.local`
+- `delivery.manager@virtualcoders.local`
+- `hr.recruiter@virtualcoders.local`
+- `finance@virtualcoders.local`
+
+Run migrations and the seed:
 
 ```powershell
 pnpm prisma migrate dev
@@ -107,7 +115,7 @@ pnpm prisma db seed
 pnpm prisma db seed
 ```
 
-The second seed run should not create duplicates.
+The second seed run should update the same stable dummy records and should not create duplicates. The current schema does not include a dedicated notifications table, so demo notifications are seeded as CRM task reminders with `reminderAt`.
 
 Reset the local development database:
 

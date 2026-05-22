@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactElement, ReactNode, useState } from "react";
 import {
   BarChart3,
   BriefcaseBusiness,
@@ -89,7 +89,7 @@ type AppShellProps = {
   title?: string;
 };
 
-export function AppShell({ children, title = "VC CRM" }: AppShellProps) {
+export function AppShell({ children, title = "VC CRM" }: AppShellProps): ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -161,7 +161,7 @@ export function AppShell({ children, title = "VC CRM" }: AppShellProps) {
   );
 }
 
-function SidebarContent() {
+function SidebarContent(): ReactElement {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">

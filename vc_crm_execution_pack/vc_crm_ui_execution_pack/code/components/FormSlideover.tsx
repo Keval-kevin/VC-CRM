@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactElement, ReactNode } from "react";
 import { X } from "lucide-react";
 
 type FormSlideoverProps = {
@@ -17,7 +17,7 @@ export function FormSlideover({
   children,
   footer,
   onClose
-}: FormSlideoverProps) {
+}: FormSlideoverProps): ReactElement | null {
   if (!open) return null;
 
   return (

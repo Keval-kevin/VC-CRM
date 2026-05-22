@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactElement, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type SurfaceCardProps = {
@@ -7,7 +7,7 @@ type SurfaceCardProps = {
   elevated?: boolean;
 };
 
-export function SurfaceCard({ children, className, elevated = false }: SurfaceCardProps) {
+export function SurfaceCard({ children, className, elevated = false }: SurfaceCardProps): ReactElement {
   return (
     <section
       className={cn(

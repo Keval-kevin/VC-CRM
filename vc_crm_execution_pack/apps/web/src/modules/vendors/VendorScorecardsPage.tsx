@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   DataTable,
   EmptyState,
+  ErrorState,
   FilterBar,
   KpiCard,
   LoadingSkeleton,
@@ -57,6 +58,12 @@ export function VendorScorecardsPage(): JSX.Element {
         </FilterBar>
       }
       loadingState={<LoadingSkeleton variant="table" />}
+      errorState={
+        <ErrorState
+          title="Vendor scorecards could not load"
+          description="The scorecard view is temporarily unavailable. Retry after the API connection is restored."
+        />
+      }
       emptyState={
         <EmptyState
           icon={ChartNoAxesCombined}

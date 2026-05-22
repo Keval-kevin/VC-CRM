@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactElement, ReactNode } from "react";
 import { PageHeader } from "./PageHeader";
 
 type ListPageTemplateProps = {
@@ -17,7 +17,7 @@ export function ListPageTemplate({
   metrics,
   toolbar,
   children
-}: ListPageTemplateProps) {
+}: ListPageTemplateProps): ReactElement {
   return (
     <div>
       <PageHeader title={title} description={description} actions={actions} />

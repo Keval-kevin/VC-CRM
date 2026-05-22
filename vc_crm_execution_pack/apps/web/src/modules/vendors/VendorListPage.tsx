@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import {
   DataTable,
   EmptyState,
+  ErrorState,
   FilterBar,
   KpiCard,
   LoadingSkeleton,
@@ -78,6 +79,12 @@ export function VendorListPage(): JSX.Element {
         </FilterBar>
       }
       loadingState={<LoadingSkeleton variant="table" />}
+      errorState={
+        <ErrorState
+          title="Vendor list could not load"
+          description="The vendor view is temporarily unavailable. Retry after the API connection is restored."
+        />
+      }
       emptyState={
         <EmptyState
           icon={FileCheck2}

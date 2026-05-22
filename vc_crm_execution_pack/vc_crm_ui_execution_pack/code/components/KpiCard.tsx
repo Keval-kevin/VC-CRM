@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { SurfaceCard } from "./SurfaceCard";
 
@@ -11,7 +12,7 @@ type KpiCardProps = {
   };
 };
 
-export function KpiCard({ label, value, helper, trend }: KpiCardProps) {
+export function KpiCard({ label, value, helper, trend }: KpiCardProps): ReactElement {
   const TrendIcon = trend?.direction === "down" ? ArrowDownRight : ArrowUpRight;
 
   return (

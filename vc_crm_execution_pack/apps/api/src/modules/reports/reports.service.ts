@@ -94,9 +94,13 @@ export async function listReports(
   actor: ReportsActor,
   query: ReportQuery,
 ): Promise<ReportPayload[]> {
+  await assertReportQueryAccess(actor, query);
   const visibleReports = reportCatalog.filter((report) => canView(actor, report.permission));
+  const tenantWhere = getTenantWhere(actor);
 
-  return Promise.all(visibleReports.map((report) => getReport(actor, report.id, query)));
+  return Promise.all(
+    visibleReports.map((report) => buildReportPayload(report, report.id, tenantWhere, query)),
+  );
 }
 
 export async function getReport(
@@ -114,8 +118,24 @@ export async function getReport(
     throw new AppError("AUTH_003", "Insufficient permissions", 403);
   }
 
+  await assertReportQueryAccess(actor, query);
   const tenantWhere = getTenantWhere(actor);
+  const payload = await buildReportPayload(report, reportId, tenantWhere, query);
 
+  await createReportAuditLog(actor, "report.viewed", reportId, {
+    reportId,
+    filters: summarizeReportQuery(query),
+  });
+
+  return payload;
+}
+
+async function buildReportPayload(
+  report: (typeof reportCatalog)[number],
+  reportId: ReportId,
+  tenantWhere: TenantWhere,
+  query: ReportQuery,
+): Promise<ReportPayload> {
   switch (reportId) {
     case "lead-source-performance":
       return buildLeadSourceReport(report, tenantWhere, query);
@@ -145,12 +165,15 @@ export async function getDashboard(
   role: DashboardRole,
   query: ReportQuery,
 ): Promise<DashboardPayload> {
+  await assertReportQueryAccess(actor, query);
+  assertDashboardRoleVisible(actor, role);
+
   const reports = await listReports(actor, query);
   const reportIds = reports.map((report) => report.id);
   const metrics = reports.flatMap((report) => report.metrics);
   const cards = pickDashboardCards(role, metrics);
 
-  return {
+  const dashboard = {
     role,
     title: getDashboardTitle(role),
     description: "Role-scoped operating dashboard assembled from report data.",
@@ -159,6 +182,14 @@ export async function getDashboard(
     charts: reports.slice(0, 3).map((report) => ({ title: report.title, points: report.chart })),
     actionQueue: reports.flatMap((report) => report.rows.slice(0, 2)).slice(0, 6),
   };
+
+  await createReportAuditLog(actor, "dashboard.viewed", role, {
+    role,
+    visibleReports: reportIds,
+    filters: summarizeReportQuery(query),
+  });
+
+  return dashboard;
 }
 
 function buildDateWhere(field: "createdAt" | "expectedCloseDate" | "dueAt" | "submittedAt" | "joiningDate" | "scheduledAt", query: ReportQuery): Record<string, unknown> {
@@ -496,6 +527,86 @@ function getTenantWhere(actor: ReportsActor): TenantWhere {
 
 function canView(actor: ReportsActor, permission: string): boolean {
   return actor.isSuperAdmin === true || actor.permissions.includes(permission);
+}
+
+async function assertReportQueryAccess(actor: ReportsActor, query: ReportQuery): Promise<void> {
+  if (query.ownerId === undefined || actor.isSuperAdmin === true) {
+    return;
+  }
+
+  const tenantId = getTenantWhere(actor).tenantId;
+  if (tenantId === undefined) {
+    return;
+  }
+
+  const owner = await prisma.user.findFirst({
+    where: {
+      id: query.ownerId,
+      tenantId,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (owner === null) {
+    throw new AppError("TENANT_002", "Report owner filter must belong to the active tenant", 400);
+  }
+}
+
+function assertDashboardRoleVisible(actor: ReportsActor, role: DashboardRole): void {
+  if (actor.isSuperAdmin === true) {
+    return;
+  }
+
+  const permissionsByRole: Record<DashboardRole, string[]> = {
+    founder: [permissions.auditRead, permissions.opportunitiesRead, permissions.placementsRead],
+    "tenant-admin": [
+      permissions.adminSettingsManage,
+      permissions.usersManage,
+      permissions.rolesManage,
+    ],
+    "sales-manager": [permissions.leadsRead, permissions.opportunitiesRead],
+    "sales-executive": [permissions.leadsRead, permissions.activitiesRead],
+    "delivery-manager": [
+      permissions.requirementsRead,
+      permissions.submissionsRead,
+      permissions.interviewsRead,
+    ],
+    "hr-recruiter": [permissions.candidatesRead, permissions.submissionsRead],
+    finance: [permissions.placementsRead],
+  };
+
+  if (!permissionsByRole[role].some((permission) => canView(actor, permission))) {
+    throw new AppError("AUTH_003", "Insufficient permissions for this dashboard role", 403);
+  }
+}
+
+async function createReportAuditLog(
+  actor: ReportsActor,
+  action: string,
+  entityId: string,
+  metadata: Prisma.InputJsonValue,
+): Promise<void> {
+  await prisma.auditLog.create({
+    data: {
+      tenantId: actor.tenantId,
+      actorUserId: actor.sub,
+      action,
+      entityType: "report",
+      entityId,
+      metadata,
+    },
+  });
+}
+
+function summarizeReportQuery(query: ReportQuery): Prisma.InputJsonValue {
+  return {
+    from: query.from?.toISOString() ?? null,
+    to: query.to?.toISOString() ?? null,
+    ownerId: query.ownerId ?? null,
+    team: query.team ?? null,
+    status: query.status ?? null,
+  };
 }
 
 function toReport(

@@ -29,7 +29,13 @@ export const reportQuerySchema = z.object({
   ownerId: z.string().uuid().optional(),
   team: z.string().trim().max(80).optional(),
   status: z.string().trim().max(80).optional(),
-});
+}).refine(
+  (query) => query.from === undefined || query.to === undefined || query.from <= query.to,
+  {
+    message: "The from date must be before or equal to the to date.",
+    path: ["to"],
+  },
+);
 
 export type DashboardRole = z.infer<typeof dashboardRoleSchema>;
 export type ReportId = z.infer<typeof reportIdSchema>;
